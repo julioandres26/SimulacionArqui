@@ -1,3 +1,5 @@
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
@@ -6,13 +8,15 @@ public class Main {
 
     public static void main(String[] args){
 
-        Ventana ventana = new Ventana();
+        CyclicBarrier barreraGUI = new CyclicBarrier(2);
+        Ventana ventana = new Ventana(barreraGUI);
         ventana.setVisible(true);
 
-        while(ventana.isVisible()){
-            //esperar...
+        try {
+            barreraGUI.await();
+        } catch (InterruptedException | BrokenBarrierException e) {
+            //...
         }
-
         //int quantum = 5000;
 //        int hilos = 6; //Para qué se usa???
 

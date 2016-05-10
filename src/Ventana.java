@@ -1,9 +1,15 @@
 import java.io.File;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 import javax.swing.JFileChooser;
 
 public class Ventana extends javax.swing.JFrame {
 
-    public Ventana() {
+    CyclicBarrier barrera;
+
+    public Ventana(CyclicBarrier barrera) {
+
+        this.barrera = barrera;
         initComponents();
     }
 
@@ -213,6 +219,11 @@ public class Ventana extends javax.swing.JFrame {
 
     private void button_aceptarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_button_aceptarActionPerformed
         this.dispose();
+        try {
+            barrera.await();
+        } catch (InterruptedException | BrokenBarrierException e) {
+            //...
+        }
     }//GEN-LAST:event_button_aceptarActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -229,4 +240,6 @@ public class Ventana extends javax.swing.JFrame {
     private javax.swing.JSlider slider_quantum;
     public javax.swing.JFileChooser ventana_buscar_archivos;
     // End of variables declaration//GEN-END:variables
+
+
 }

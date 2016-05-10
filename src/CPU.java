@@ -268,30 +268,51 @@ public class CPU implements Runnable {
     }
 
     private void cargarHilosMemoria(File[] pathHilos){
+//    public void cargarHilosMemoria() {
         int inicioMemoria = 128;
 
-        for (int i = 0; i <= pathHilos.length; i++){
-
-            Path filePath = pathHilos[i].toPath();
-            System.out.println(filePath);
-            try {
-                Scanner scanner = new Scanner(filePath);
-                while (scanner.hasNext()) {
-                    if (scanner.hasNextInt()) {
-                        memoria_principal[inicioMemoria] = scanner.nextInt();
-                        inicioMemoria++;
-                    } else {
-                        scanner.next();
-                    }
+        Path filePath = pathHilos[0].toPath() ;
+        System.out.println(filePath);
+        //Path filePath = Paths.get("G:/Sharon/Cursos/Arquitectura de Computadoras/Proyecto/HILOS 1era Parte/2.txt");
+        try {
+            Scanner scanner = new Scanner(filePath);
+            while (scanner.hasNext()) {
+                if (scanner.hasNextInt()) {
+                    memoria_principal[inicioMemoria] = scanner.nextInt();
+                    inicioMemoria++;
+                } else {
+                    scanner.next();
                 }
-            } catch (IOException e) {
-                //...
             }
+        } catch (IOException e) {
+            //...
         }
 
 
-
     }
+
+//    private void cargarHilosMemoria(File[] pathHilos){
+//        int inicioMemoria = 128;
+//
+//        for (int i = 0; i <= pathHilos.length; i++){
+//
+//            Path filePath = pathHilos[i].toPath();
+//            System.out.println(filePath);
+//            try {
+//                Scanner scanner = new Scanner(filePath);
+//                while (scanner.hasNext()) {
+//                    if (scanner.hasNextInt()) {
+//                        memoria_principal[inicioMemoria] = scanner.nextInt();
+//                        inicioMemoria++;
+//                    } else {
+//                        scanner.next();
+//                    }
+//                }
+//            } catch (IOException e) {
+//                //...
+//            }
+//        }
+//    }
 
     public void run() {
         System.out.println("EXITO");
