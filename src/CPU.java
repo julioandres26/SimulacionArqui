@@ -12,13 +12,9 @@ public class CPU implements Runnable {
     public int id, reloj, pc, pc_contexto, reloj_fallo, quantum_original, quantum;
     public int tam_mem_princ = 128 + 256; // 128 bytes de memoria compartida
 
-    //    public boolean fallo_cache = false;
     public boolean terminado;
 
     CyclicBarrier barrera;
-
-//    public String hiloMIPS_actual = "";
-//    public String hiloMIPS_contexto = "";
 
     int cant_hilos;
     int hilo_actual = 0;
@@ -68,26 +64,16 @@ public class CPU implements Runnable {
             }
             etiquetas_cache[i] = -1;
         }
-
-//        for (int i = 0; i < 4; i++) {
-//            etiquetas_cache[i] = -1;
-//        }
-
         cargarHilosMemoria(hilos);
     }
 
     public void cargar_instruccion(int pc) {
-//        pc = 200; //prueba
 
         int bloque = pc / 16; // System.out.println("Bloque = " + bloque + "\nPC = " + pc);
         int indice = bloque % 4;
 
         int resultado_previo = pc % 16;
         int palabra = resultado_previo / 4;
-
-//        for (int k = 0; k < 128 + 256; k++) { //pueba
-//            memoria_principal[k] = k;
-//        }
 
         if (etiquetas_cache[indice] == bloque) { //hit de cache
 //            fallo_cache = false;
@@ -166,42 +152,18 @@ public class CPU implements Runnable {
         quantum--; //el quantum se resta cuando se ejecuta una instrucción.
     }
 
-//    public boolean termino() {
-//        boolean respuesta;
-//        reloj++;
-//        if (fallo_cache) {
-//            if (reloj == (reloj_fallo + 16)) {
-//                respuesta = true;
-//            } else {
-//                respuesta = false;
-//            }
-//        } else {
-//            respuesta = true;
-//        }
-//        return respuesta;
-//    }
-
     public void cambio_contexto() { //cambia de contexto al hilo actual por el siguiente en la cola (actual+1).
-        int pc_temp;
-        int registros_temp[] = new int[33];
-
         int siguiente_hilo = (hilo_actual+1)%cant_hilos;
 
         while (hilos_terminados[siguiente_hilo] == true) {
             siguiente_hilo = (siguiente_hilo+1)%cant_hilos;
         }
 
-//        pc_temp = contexto[siguiente_hilo][32]; //pc del siguiente hilo en la "cola de espera".
-//        for (int i = 0; i < 32; i++) {
-//            registros_temp[i] = contexto[(hilo_actual+1)%cant_hilos][i]; //registros del siguiente hilo en la cola.
-//        }
-
         contexto[hilo_actual][32] = pc;
         for (int i = 0; i < 32; i++) {
             contexto[hilo_actual][i] = registros[i];
         }
 
-//        hiloMIPS_actual = hiloMIPS_temp;
         pc = contexto[siguiente_hilo][32];
         for (int i = 0; i < 32; i++) {
             registros[i] = contexto[siguiente_hilo][i];
@@ -262,6 +224,7 @@ public class CPU implements Runnable {
 
     public void FIN() {
         hilos_terminados[hilo_actual] = true;
+        imprimir_registros();
         System.out.println("FIIIIIIIIIIIIIIIIIIIIIIIN!!!!!!!!!!!!!!!!!!!!!!");
     }
 
@@ -274,19 +237,29 @@ public class CPU implements Runnable {
         System.out.println();
     }
 
-//    public void cambiar_variable_compartida(CPU cpu) {
-//        cpu.variable_compartida += 1;
-//    }
-
     public boolean procesamientoTerminado() {
         int j = 0;
-        for (int i = 0; i < cant_hilos; i++){
-            if (hilos_terminados[i] == true){
-                j++;
+        if (terminado == true){
+            try {
+                barrera.await();
+            } catch (InterruptedException | BrokenBarrierException e) {
+                //...
             }
-        }
-        if (j == cant_hilos){
-            terminado = true;
+        } else{
+            try {
+                barrera.await();
+            } catch (InterruptedException | BrokenBarrierException e) {
+                //...
+            }
+            for (int i = 0; i < cant_hilos; i++){
+                if (hilos_terminados[i] == true){
+                    j++;
+                }
+            }
+            if (j == cant_hilos){
+                terminado = true;
+            }
+            return terminado;
         }
         return terminado;
     }
@@ -298,7 +271,6 @@ public class CPU implements Runnable {
             contexto[i][32] = inicioMemoria;
             Path filePath = pathHilos.get(i).toPath() ;
             System.out.println(filePath);
-            //Path filePath = Paths.get("G:/Sharon/Cursos/Arquitectura de Computadoras/Proyecto/HILOS 1era Parte/2.txt");
             try {
                 Scanner scanner = new Scanner(filePath);
                 while (scanner.hasNext()) {
@@ -313,9 +285,6 @@ public class CPU implements Runnable {
                 //...
             }
         }
-
-
-
     }
 
     public void run() {
@@ -327,17 +296,17 @@ public class CPU implements Runnable {
                     cargar_instruccion(pc);
                     ejecutar_instruccion();
 
-                    System.out.print("IR = ");
-                    for (int i = 0; i < 4; i++)
-                        System.out.print(ir[i] + " ");
-                    System.out.println();
+//                    System.out.print("IR = ");
+//                    for (int i = 0; i < 4; i++)
+//                        System.out.print(ir[i] + " ");
+//                    System.out.println();
 
                     try {
                         barrera.await();
                     } catch (InterruptedException | BrokenBarrierException e) {
                         //...
                     }
-                    System.out.println("quantum = " + quantum);
+//                    System.out.println("quantum = " + quantum);
                 }
                 quantum = quantum_original;
                 cambio_contexto();
