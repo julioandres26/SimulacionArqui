@@ -10,7 +10,7 @@ import java.util.concurrent.CyclicBarrier;
 
 public class Main {
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
 
         CyclicBarrier barreraGUI = new CyclicBarrier(2);
         Ventana ventana = new Ventana(barreraGUI);
@@ -43,11 +43,11 @@ public class Main {
         List<File> archivosCPU3 = new ArrayList<File>();
 
         int temporal = 1;
-        for (int i = 0; i < archivos.length; i++){
-            if (temporal == 4){
+        for (int i = 0; i < archivos.length; i++) {
+            if (temporal == 4) {
                 temporal = 1;
             }
-            switch (temporal){
+            switch (temporal) {
                 case 1:
                     archivosCPU1.add(archivos[i]);
                     temporal++;
@@ -64,7 +64,7 @@ public class Main {
         }
 
 
-        CyclicBarrier barrera = new CyclicBarrier(2);
+        CyclicBarrier barrera = new CyclicBarrier(4);
 
         CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera);
         CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera);
@@ -79,19 +79,21 @@ public class Main {
         thread3.start();
 
         int ciclo = 0;
-        while (!cpu1.procesamientoTerminado() || !cpu2.procesamientoTerminado() || !cpu3.procesamientoTerminado()) {
+        while (!cpu1.getTerminado() || !cpu2.getTerminado() || !cpu3.getTerminado()) {
 
-            try {
+        try {
                 barrera.await();
             } catch (InterruptedException | BrokenBarrierException e) {
                 //...
             }
 
             ciclo++;
-//            System.out.println("Ciclo = " + ciclo);
+            if (ciclo == 834){
+                System.out.println("Ciclo = " + ciclo);
+            }
+            System.out.println("Ciclo = " + ciclo);
         }
         cpu1.imprimir_registros();
         System.exit(0);
     }
 }
-
