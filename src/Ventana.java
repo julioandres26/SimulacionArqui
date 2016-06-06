@@ -8,7 +8,6 @@ public class Ventana extends javax.swing.JFrame {
     CyclicBarrier barrera;
 
     public Ventana(CyclicBarrier barrera) {
-
         this.barrera = barrera;
         initComponents();
     }
@@ -23,6 +22,12 @@ public class Ventana extends javax.swing.JFrame {
     private void initComponents() {
 
         ventana_buscar_archivos = new javax.swing.JFileChooser();
+        resultados = new javax.swing.JFrame();
+        jLabel2 = new javax.swing.JLabel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jTextArea1 = new javax.swing.JTextArea();
+        button_terminar = new javax.swing.JButton();
+        informacion = new javax.swing.JLabel();
         label_titulo = new javax.swing.JLabel();
         label_hilos = new javax.swing.JLabel();
         label_quantum = new javax.swing.JLabel();
@@ -36,6 +41,56 @@ public class Ventana extends javax.swing.JFrame {
         nombres_hilos = new javax.swing.JTextField();
 
         ventana_buscar_archivos.setMultiSelectionEnabled(true);
+
+        resultados.setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        jLabel2.setFont(new java.awt.Font("Arial", 1, 16)); // NOI18N
+        jLabel2.setText("Resultados");
+
+        jTextArea1.setColumns(20);
+        jTextArea1.setRows(5);
+        jScrollPane1.setViewportView(jTextArea1);
+
+        button_terminar.setText("Aceptar");
+        button_terminar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                button_terminarActionPerformed(evt);
+            }
+        });
+
+        informacion.setFont(new java.awt.Font("Arial", 0, 10)); // NOI18N
+
+        javax.swing.GroupLayout resultadosLayout = new javax.swing.GroupLayout(resultados.getContentPane());
+        resultados.getContentPane().setLayout(resultadosLayout);
+        resultadosLayout.setHorizontalGroup(
+                resultadosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(resultadosLayout.createSequentialGroup()
+                                .addContainerGap()
+                                .addGroup(resultadosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 495, Short.MAX_VALUE)
+                                        .addGroup(resultadosLayout.createSequentialGroup()
+                                                .addComponent(jLabel2)
+                                                .addGap(0, 0, Short.MAX_VALUE))
+                                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, resultadosLayout.createSequentialGroup()
+                                                .addGap(0, 0, Short.MAX_VALUE)
+                                                .addGroup(resultadosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                        .addComponent(button_terminar, javax.swing.GroupLayout.Alignment.TRAILING)
+                                                        .addComponent(informacion, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                .addContainerGap())
+        );
+        resultadosLayout.setVerticalGroup(
+                resultadosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(resultadosLayout.createSequentialGroup()
+                                .addContainerGap()
+                                .addComponent(jLabel2)
+                                .addGap(23, 23, 23)
+                                .addComponent(informacion, javax.swing.GroupLayout.PREFERRED_SIZE, 11, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(8, 8, 8)
+                                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 269, Short.MAX_VALUE)
+                                .addGap(18, 18, 18)
+                                .addComponent(button_terminar)
+                                .addGap(10, 10, 10))
+        );
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -226,20 +281,33 @@ public class Ventana extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_button_aceptarActionPerformed
 
+    private void button_terminarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_button_terminarActionPerformed
+        this.dispose();
+        try {
+            barrera.await();
+        } catch (InterruptedException | BrokenBarrierException e) {
+            //...
+        }
+    }//GEN-LAST:event_button_terminarActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton button_aceptar;
     private javax.swing.JButton button_archivos;
+    private javax.swing.JButton button_terminar;
     public javax.swing.JFormattedTextField cantidad_hilos;
     public javax.swing.JFormattedTextField cantidad_quantum;
+    public javax.swing.JLabel informacion;
+    private javax.swing.JLabel jLabel2;
+    public javax.swing.JScrollPane jScrollPane1;
+    public javax.swing.JTextArea jTextArea1;
     private javax.swing.JLabel label_archivos;
     private javax.swing.JLabel label_hilos;
     private javax.swing.JLabel label_quantum;
     private javax.swing.JLabel label_titulo;
     private javax.swing.JTextField nombres_hilos;
+    public javax.swing.JFrame resultados;
     private javax.swing.JSlider slider_hilos;
     private javax.swing.JSlider slider_quantum;
     public javax.swing.JFileChooser ventana_buscar_archivos;
     // End of variables declaration//GEN-END:variables
-
-
 }

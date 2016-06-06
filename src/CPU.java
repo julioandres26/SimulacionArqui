@@ -6,29 +6,29 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class CPU implements Runnable {
 
-    public int id, reloj, pc, pc_contexto, reloj_fallo, quantum_original, quantum;
-    public int tam_mem_princ = 128 + 256; // 128 bytes de memoria compartida
+    public int id, pc, pc_contexto, quantum_original, quantum;
+    public int tam_mem_princ = 128 + 256; // 128 bytes de memoria compartida + 256 de memoria de cada CPU
+    public boolean terminado; //define si la CPU terminó de ejecutar todos sus hilos
 
-    //    public boolean fallo_cache = false;
-    public boolean terminado;
+    CyclicBarrier barrera; //barrera de sincronización de los CPU
 
-    CyclicBarrier barrera;
+    public List<File> hilos = new ArrayList<>(); //path de los hilos de esta CPU
 
-//    public String hiloMIPS_actual = "";
-//    public String hiloMIPS_contexto = "";
+    public int cant_hilos;
+    public int hilo_actual; //hilo que está actualmente ejecutandose en el procesador
+    public int contexto[][]; //guarda los registros y el pc de un hilo al sacarlo de ejecución
+    public boolean hilos_terminados[]; //define cuáles hilos terminaron su ejecución
+    public int reloj[]; //cantidad de ciclos que duró en ejecutarse cada hilo
 
-    int cant_hilos;
-    int hilo_actual = 0;
-    public int contexto[][]; //guarda los registros y el pc de un hilo.
-    public boolean hilos_terminados[];
-
-    public int ir[] = new int[4];
-    public int registros[] = new int[32];
-    public int memoria_principal[] = new int[tam_mem_princ];
-    public int etiquetas_cache[] = new int[4]; //arreglo de las etiquetas. Inicializados en -1.
+    public int ir[] = new int[4]; //registro IR
+    public int registros[] = new int[32]; //registros MIPS
+    public int memoria_principal[] = new int[tam_mem_princ]; //384 bytes
+    public int etiquetas_cache[] = new int[4]; //arreglo de las etiquetas inicializado en -1
     public int cache[][][] = new int[4][4][4]; //índice, parabra, byte.
 
     public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera) {
@@ -36,21 +36,23 @@ public class CPU implements Runnable {
         this.quantum = quantum;
         this.quantum_original = quantum;
         this.barrera = barrera;
+        this.hilos = hilos;
 
-        pc = 128;
-
+        pc = 128; //inicio de la primera instrucción
+        pc_contexto = 0;
         cant_hilos = hilos.size();
+        hilo_actual = 0;
 
         contexto = new int[cant_hilos][33];
         hilos_terminados = new boolean[cant_hilos];
-
-        for (int i = 0; i < cant_hilos; i++){
-            hilos_terminados[i] = false;
-        }
+        reloj = new int[cant_hilos];
 
         terminado = false;
 
-        reloj = pc_contexto = 0;
+        for (int i = 0; i < cant_hilos; i++){
+            hilos_terminados[i] = false;
+            reloj[i] = 0;
+        }
 
         for (int i = 0; i < 32; i++) {
             registros[i] = 0;
@@ -69,61 +71,55 @@ public class CPU implements Runnable {
             etiquetas_cache[i] = -1;
         }
 
-//        for (int i = 0; i < 4; i++) {
-//            etiquetas_cache[i] = -1;
-//        }
-
-        cargarHilosMemoria(hilos);
+        cargar_hilos_memoria();
     }
 
+    //Carga una instrucción de caché al IR.
     public void cargar_instruccion(int pc) {
-//        pc = 200; //prueba
-
-        int bloque = pc / 16; // System.out.println("Bloque = " + bloque + "\nPC = " + pc);
-        int indice = bloque % 4;
+        int bloque = pc / 16; //bloque de memoria donde está esa instrucción
+        int indice = bloque % 4; //índice de la caché (mapeo directo)
 
         int resultado_previo = pc % 16;
-        int palabra = resultado_previo / 4;
+        int palabra = resultado_previo / 4; //dirección de la instrucción dentro del bloque
 
-//        for (int k = 0; k < 128 + 256; k++) { //pueba
-//            memoria_principal[k] = k;
-//        }
-
-        if (etiquetas_cache[indice] == bloque) { //hit de cache
-//            fallo_cache = false;
+        if (etiquetas_cache[indice] == bloque) { //hit de caché
             for (int j = 0; j < 4; j++) {
-                ir[j] = cache[indice][palabra][j]; //copia al registro IR la intrucción codificada.
+                ir[j] = cache[indice][palabra][j]; //copia al registro IR la intrucción codificada
             }
-        } else { //fallo de cache
-//            fallo_cache = true;
-//            reloj_fallo = reloj;
-            int direccion_memoria = bloque * 16; //dirección en la que comienza el bloque que hay que cargar a cache.
+        } else { //fallo de caché
+            int direccion_memoria = bloque * 16; //dirección en la que comienza el bloque que hay que cargar a caché
             int i = direccion_memoria;
 
             for (int j = 0; j < 4; j++) { //palabra
                 for (int k = 0; k < 4; k++) { //byte
-                    cache[indice][j][k] = memoria_principal[i + (j * 4) + k]; //copia a caché el bloque de la instrucción.
+                    cache[indice][j][k] = memoria_principal[i + (j * 4) + k]; //copia a caché el bloque de la instrucción
                 }
             }
 
             for (int j = 0; j < 4; j++) {
-                ir[j] = cache[indice][palabra][j]; //copia al registro IR la intrucción codificada.
+                ir[j] = cache[indice][palabra][j]; //copia al registro IR la intrucción codificada
             }
 
             etiquetas_cache[indice] = bloque;
 
-            fallo_cache(); //le dice al hilo padre que ya terminó su ejecución (por 16 ciclos).
+            fallo_cache();
         }
     }
 
-    public void fallo_cache() {
-        System.out.println("¡Fallo de cache!");
+    public void fallo_cache() { //le dice al hilo padre que ya terminó su ejecución (por 16 ciclos)
         for (int i = 0; i < 16; i++) {
             try {
-                System.out.println("ESPERANDO BARRERA" + id);
                 barrera.await();
-            } catch (InterruptedException | BrokenBarrierException e) {
-                //...
+            } catch (InterruptedException | BrokenBarrierException ex) {
+                Logger.getLogger(CPU.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            reloj[hilo_actual]++; //aumenta la cantidad de ciclos que tardó la ejecución del hilo actual
+
+            try {
+                barrera.await();
+            } catch (InterruptedException | BrokenBarrierException ex) {
+                Logger.getLogger(CPU.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -161,46 +157,29 @@ public class CPU implements Runnable {
                 FIN();
                 break;
             default:
-                System.out.println("¡Codigo de operacion invalido!");
+//                System.out.println("¡Codigo de operacion invalido!");
                 break;
         }
-        quantum--; //el quantum se resta cuando se ejecuta una instrucción.
+        reloj[hilo_actual]++; //aumenta la cantidad de ciclos que tardó la ejecución del hilo actual
+        quantum--; //el quantum se resta solo cuando se ejecuta una instrucción
     }
 
-//    public boolean termino() {
-//        boolean respuesta;
-//        reloj++;
-//        if (fallo_cache) {
-//            if (reloj == (reloj_fallo + 16)) {
-//                respuesta = true;
-//            } else {
-//                respuesta = false;
-//            }
-//        } else {
-//            respuesta = true;
-//        }
-//        return respuesta;
-//    }
+    public void cambio_contexto() { //cambia de contexto al hilo actual por el siguiente en la cola (actual+1)
+        int siguiente_hilo = (hilo_actual + 1) % cant_hilos;
 
-    public void cambio_contexto() { //cambia de contexto al hilo actual por el siguiente en la cola (actual+1).
-        int pc_temp;
-        int registros_temp[] = new int[33];
-
-        int siguiente_hilo = (hilo_actual+1)%cant_hilos;
-
-        if (!procesamientoTerminado()){
+        if (!procesamiento_terminado()) {
             while (hilos_terminados[siguiente_hilo] == true) {
-                siguiente_hilo = (siguiente_hilo+1)%cant_hilos;
+                siguiente_hilo = (siguiente_hilo + 1) % cant_hilos; //siguiente hilo que no ha terminado ejecución
             }
 
             contexto[hilo_actual][32] = pc;
             for (int i = 0; i < 32; i++) {
-                contexto[hilo_actual][i] = registros[i];
+                contexto[hilo_actual][i] = registros[i]; //guarda los registros de hilo actual
             }
 
             pc = contexto[siguiente_hilo][32];
             for (int i = 0; i < 32; i++) {
-                registros[i] = contexto[siguiente_hilo][i];
+                registros[i] = contexto[siguiente_hilo][i]; //carga los registros del siguiente hilo
             }
 
             hilo_actual = siguiente_hilo;
@@ -258,24 +237,29 @@ public class CPU implements Runnable {
     }
 
     public void FIN() {
-        hilos_terminados[hilo_actual] = true;
-        System.out.println("FIIIIIIIIIIIIIIIIIIIIIIIN!!!!!!!!!!!!!!!!!!!!!!"+id);
+        hilos_terminados[hilo_actual] = true; //final de un hilo MIPS
     }
 
-    public void imprimir_registros() {
-        System.out.println("\nRegistros de CPU " + id + ":");
-        for (int i = 0; i < 32; i++) {
-            if(registros[i] != 0)
-                System.out.println("R" + i + " " + registros[i]);
+    public String imprimir_resultados() { //devuelve un String con los resultados finales del CPU
+        String registros_String = ("- - Registros de CPU " + id + " - -");
+        String espacio;
+        for (int j = 0; j < cant_hilos; j++) {
+            registros_String += ("\n\n- - Hilo " + hilos.get(j).getName() + " - -\n");
+            for (int i = 0; i < 32; i++) {
+                if (i < 9) {
+                    espacio = "    ";
+                } else {
+                    espacio = "  ";
+                }
+                registros_String += ("R" + i + espacio + contexto[j][i] + "\n");
+            }
+            registros_String += "\nTardó en ejecutarse " + reloj[j] + " ciclos.";
         }
-        System.out.println();
+
+        return registros_String;
     }
 
-//    public void cambiar_variable_compartida(CPU cpu) {
-//        cpu.variable_compartida += 1;
-//    }
-
-    public boolean procesamientoTerminado() {
+    public boolean procesamiento_terminado() { //determina si la CPU terminó de ejecutar todos sus hilos
         int j = 0;
         for (int i = 0; i < cant_hilos; i++){
             if (hilos_terminados[i] == true){
@@ -288,14 +272,12 @@ public class CPU implements Runnable {
         return terminado;
     }
 
-    private void cargarHilosMemoria(List<File> pathHilos){
+    private void cargar_hilos_memoria(){ //carga los hilos MIPS a la memoria del CPU
         int inicioMemoria = 128;
 
-        for (int i = 0; i < pathHilos.size(); i++){
+        for (int i = 0; i < hilos.size(); i++){
             contexto[i][32] = inicioMemoria;
-            Path filePath = pathHilos.get(i).toPath() ;
-            System.out.println(filePath);
-            //Path filePath = Paths.get("G:/Sharon/Cursos/Arquitectura de Computadoras/Proyecto/HILOS 1era Parte/2.txt");
+            Path filePath = hilos.get(i).toPath() ;
             try {
                 Scanner scanner = new Scanner(filePath);
                 while (scanner.hasNext()) {
@@ -310,45 +292,30 @@ public class CPU implements Runnable {
                 //...
             }
         }
-
-
-
     }
 
     public void run() {
-        System.out.println("EXITO");
-        System.out.println(Thread.currentThread().getName());
-
-        while (!procesamientoTerminado()){
-            while (quantum > 0 && hilos_terminados[hilo_actual] == false) {
-                cargar_instruccion(pc);
-                ejecutar_instruccion();
-
-                System.out.print("IR = ");
-                for (int i = 0; i < 4; i++)
-                    System.out.print(ir[i] + " ");
-                System.out.println();
-
-                try {
-                    System.out.println("ESPERANDO BARRERA" + id);
-                    barrera.await();
-                } catch (InterruptedException | BrokenBarrierException e) {
-                    //...
-                }
-                System.out.println(id + " quantum = " + quantum);
-            }
-            quantum = quantum_original;
-            cambio_contexto();
-        }
-        while(true){
+        while (true) {
             try {
                 barrera.await();
-            } catch (InterruptedException | BrokenBarrierException e) {
-                //...
+            } catch (InterruptedException | BrokenBarrierException ex) {
+                Logger.getLogger(CPU.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            if (!procesamiento_terminado()) {
+                if ((quantum > 0) && (hilos_terminados[hilo_actual] == false)) {
+                    cargar_instruccion(pc);
+                    ejecutar_instruccion();
+                }
+                quantum = quantum_original;
+                cambio_contexto();
+            }
+
+            try {
+                barrera.await();
+            } catch (InterruptedException | BrokenBarrierException ex) {
+                Logger.getLogger(CPU.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-    }
-    public boolean getTerminado(){
-        return terminado;
     }
 }
