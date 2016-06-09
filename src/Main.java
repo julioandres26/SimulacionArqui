@@ -3,6 +3,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Main {
 
@@ -21,6 +23,9 @@ public class Main {
         List<File> archivosCPU1 = new ArrayList<>();
         List<File> archivosCPU2 = new ArrayList<>();
         List<File> archivosCPU3 = new ArrayList<>();
+
+        int caches_datos[][][] = new int[3][6][4];
+        Lock lockPrueba = new ReentrantLock();
 
         int temporal = 1;
         for (int i = 0; i < archivos.length; i++) { //se reparten los archivos a cada CPU
@@ -49,9 +54,9 @@ public class Main {
 
         CyclicBarrier barrera = new CyclicBarrier(4); //barrera para la sincronización de los CPU
 
-        CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera);
-        CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera);
-        CPU cpu3 = new CPU(3, quantum, archivosCPU3, barrera);
+        CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera, prueba, lockPrueba);
+        CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera, prueba, lockPrueba);
+        CPU cpu3 = new CPU(3, quantum, archivosCPU3, barrera, prueba, lockPrueba);
 
         Thread thread1 = new Thread(cpu1);
         Thread thread2 = new Thread(cpu2);
@@ -111,6 +116,7 @@ public class Main {
 
         barreraGUI.await();
 
+        System.out.println("Desde el main: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
         System.exit(0);
     }
 }

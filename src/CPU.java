@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.locks.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,14 +30,20 @@ public class CPU implements Runnable {
     public int registros[] = new int[32]; //registros MIPS
     public int memoria_principal[] = new int[tam_mem_princ]; //384 bytes
     public int etiquetas_cache[] = new int[4]; //arreglo de las etiquetas inicializado en -1
-    public int cache[][][] = new int[4][4][4]; //índice, parabra, byte.
+    public int cache_de_instrucciones[][][] = new int[4][4][4]; //índice, parabra, byte.
 
-    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera) {
+    public int[] prueba;
+    public Lock lock;
+
+    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera, int[] prueba, Lock lock) {
         this.id = id;
         this.quantum = quantum;
         this.quantum_original = quantum;
         this.barrera = barrera;
         this.hilos = hilos;
+
+        this.prueba = prueba;
+        this.lock = lock;
 
         pc = 128; //inicio de la primera instrucción
         pc_contexto = 0;
@@ -65,7 +72,7 @@ public class CPU implements Runnable {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 for (int k = 0; k < 4; k++) {
-                    cache[i][j][k] = 0;
+                    cache_de_instrucciones[i][j][k] = 0;
                 }
             }
             etiquetas_cache[i] = -1;
@@ -84,7 +91,7 @@ public class CPU implements Runnable {
 
         if (etiquetas_cache[indice] == bloque) { //hit de caché
             for (int j = 0; j < 4; j++) {
-                ir[j] = cache[indice][palabra][j]; //copia al registro IR la intrucción codificada
+                ir[j] = cache_de_instrucciones[indice][palabra][j]; //copia al registro IR la intrucción codificada
             }
         } else { //fallo de caché
             int direccion_memoria = bloque * 16; //dirección en la que comienza el bloque que hay que cargar a caché
@@ -92,12 +99,12 @@ public class CPU implements Runnable {
 
             for (int j = 0; j < 4; j++) { //palabra
                 for (int k = 0; k < 4; k++) { //byte
-                    cache[indice][j][k] = memoria_principal[i + (j * 4) + k]; //copia a caché el bloque de la instrucción
+                    cache_de_instrucciones[indice][j][k] = memoria_principal[i + (j * 4) + k]; //copia a caché el bloque de la instrucción
                 }
             }
 
             for (int j = 0; j < 4; j++) {
-                ir[j] = cache[indice][palabra][j]; //copia al registro IR la intrucción codificada
+                ir[j] = cache_de_instrucciones[indice][palabra][j]; //copia al registro IR la intrucción codificada
             }
 
             etiquetas_cache[indice] = bloque;
@@ -295,6 +302,39 @@ public class CPU implements Runnable {
     }
 
     public void run() {
+        switch (id){
+            case 1:
+                if (lock.tryLock()) {
+                    try {
+                        System.out.println("Desde el run1: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
+                        prueba[0] = 5;
+                        System.out.println("Desde el run1: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
+                    } finally {
+                        lock.unlock();
+                    }
+                } else {
+                    System.out.println("Desde el run1 no pude entrar!!!");
+                }
+                break;
+            case 2:
+                if (lock.tryLock()) {
+                    try {
+                        System.out.println("Desde el run2: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
+                        prueba[1] = 8;
+                        System.out.println("Desde el run2: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
+                    } finally {
+                        //lock.unlock();
+                    }
+                } else {
+                    System.out.println("Desde el run2 no pude entrar!!!");
+                }
+                break;
+            case 3:
+                System.out.println("Desde el run3: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
+                prueba[2] = 10;
+                System.out.println("Desde el run3: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
+                break;
+        }
         while (true) {
             try {
                 barrera.await();
