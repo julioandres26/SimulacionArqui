@@ -16,15 +16,30 @@ public class Main {
 
         barreraGUI.await();
 
-        int quantum = Integer.parseInt(ventana.cantidad_quantum.getText());
-        int hilos = Integer.parseInt(ventana.cantidad_hilos.getText());
-        File[] archivos = ventana.ventana_buscar_archivos.getSelectedFiles();
+        //int quantum = Integer.parseInt(ventana.cantidad_quantum.getText());
+        //int hilos = Integer.parseInt(ventana.cantidad_hilos.getText());
+        //File[] archivos = ventana.ventana_buscar_archivos.getSelectedFiles();
+        
+        // Comentar esta seccion en caso de querer usar la GUI
+        int quantum = 30;
+        int hilos = 6;
+        File[] archivos = new File[6];
+        archivos[0] = new File("C:/Users/A71279/Documents/1.txt");
+        archivos[1] = new File("C:/Users/A71279/Documents/2.txt");
+        archivos[2] = new File("C:/Users/A71279/Documents/3.txt");
+        archivos[3] = new File("C:/Users/A71279/Documents/4.txt");
+        archivos[4] = new File("C:/Users/A71279/Documents/5.txt");
+        archivos[5] = new File("C:/Users/A71279/Documents/6.txt");
+        //Fin de seccion
 
         List<File> archivosCPU1 = new ArrayList<>();
         List<File> archivosCPU2 = new ArrayList<>();
         List<File> archivosCPU3 = new ArrayList<>();
 
-        int caches_datos[][][] = new int[3][6][4];
+        int caches_dato0[][] = new int[4][6];
+        int caches_dato1[][] = new int[4][6];
+        int caches_dato2[][] = new int[4][6];
+        
         Lock lockPrueba = new ReentrantLock();
 
         int temporal = 1;
@@ -54,9 +69,9 @@ public class Main {
 
         CyclicBarrier barrera = new CyclicBarrier(4); //barrera para la sincronización de los CPU
 
-        CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera, prueba, lockPrueba);
-        CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera, prueba, lockPrueba);
-        CPU cpu3 = new CPU(3, quantum, archivosCPU3, barrera, prueba, lockPrueba);
+        CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera, lockPrueba, caches_dato0, caches_dato1, caches_dato2);
+        CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera, lockPrueba, caches_dato0, caches_dato1, caches_dato2);
+        CPU cpu3 = new CPU(3, quantum, archivosCPU3, barrera, lockPrueba, caches_dato0, caches_dato1, caches_dato2);
 
         Thread thread1 = new Thread(cpu1);
         Thread thread2 = new Thread(cpu2);
@@ -116,7 +131,7 @@ public class Main {
 
         barreraGUI.await();
 
-        System.out.println("Desde el main: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
+        System.out.println("Desde el main: " + caches_dato0[0][0]);
         System.exit(0);
     }
 }

@@ -1,3 +1,4 @@
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -32,17 +33,22 @@ public class CPU implements Runnable {
     public int etiquetas_cache[] = new int[4]; //arreglo de las etiquetas inicializado en -1
     public int cache_de_instrucciones[][][] = new int[4][4][4]; //índice, parabra, byte.
 
-    public int[] prueba;
+    public int[][] caches_dato1;
+    public int[][] caches_dato2;
+    public int[][] caches_dato3;
     public Lock lock;
 
-    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera, int[] prueba, Lock lock) {
+    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera, Lock lock, int caches_dato0[][], int caches_dato1[][], int caches_dato2[][]) {
         this.id = id;
         this.quantum = quantum;
         this.quantum_original = quantum;
         this.barrera = barrera;
         this.hilos = hilos;
 
-        this.prueba = prueba;
+        this.caches_dato1 = caches_dato0;
+        this.caches_dato2 = caches_dato1;
+        this.caches_dato3 = caches_dato2;
+
         this.lock = lock;
 
         pc = 128; //inicio de la primera instrucción
@@ -56,7 +62,7 @@ public class CPU implements Runnable {
 
         terminado = false;
 
-        for (int i = 0; i < cant_hilos; i++){
+        for (int i = 0; i < cant_hilos; i++) {
             hilos_terminados[i] = false;
             reloj[i] = 0;
         }
@@ -243,6 +249,69 @@ public class CPU implements Runnable {
         pc = registros[RX];
     }
 
+    public void LW(int RY, int RX, int n) {
+        // C = 0, M = 1, I = 2
+        switch (id) {
+            case 1:
+                if (lock.tryLock()) {
+                    try {
+                        int direccion_de_memoria = n + RY;
+                        int bloque = direccion_de_memoria / 16;
+                        int indice = bloque % 4; //índice de la caché (mapeo directo)
+                        
+                        if( (caches_dato1[indice][4] == bloque) && (caches_dato1[indice][5] != 2) ){
+                            //LEER
+                        } else {
+                            //NO ESTA
+                        }
+                    } finally {
+                        lock.unlock();
+                    }
+                } else {
+                    System.out.println("Desde el CPU 1 no pude entrar a mi cache de datos!!!");
+                }
+                break;
+            case 2:
+                if (lock.tryLock()) {
+                    try {
+                        int direccion_de_memoria = n + RY;
+                        int bloque = direccion_de_memoria / 16;
+                        int indice = bloque % 4; //índice de la caché (mapeo directo)
+                        
+                        if( (caches_dato2[indice][4] == bloque) && (caches_dato2[indice][5] != 2) ){
+                            //LEER
+                        } else {
+                            //NO ESTA
+                        }
+                    } finally {
+                        lock.unlock();
+                    }
+                } else {
+                    System.out.println("Desde el CPU 2 no pude entrar a mi cache de datos!!!");
+                }
+                break;
+            case 3:
+                if (lock.tryLock()) {
+                    try {
+                        int direccion_de_memoria = n + RY;
+                        int bloque = direccion_de_memoria / 16;
+                        int indice = bloque % 4; //índice de la caché (mapeo directo)
+                        
+                        if( (caches_dato3[indice][4] == bloque) && (caches_dato3[indice][5] != 2) ){
+                            //LEER
+                        } else {
+                            //NO ESTA
+                        }
+                    } finally {
+                        lock.unlock();
+                    }
+                } else {
+                    System.out.println("Desde el CPU 3 no pude entrar a mi cache de datos!!!");
+                }
+                break;
+        }
+    }
+
     public void FIN() {
         hilos_terminados[hilo_actual] = true; //final de un hilo MIPS
     }
@@ -268,23 +337,23 @@ public class CPU implements Runnable {
 
     public boolean procesamiento_terminado() { //determina si la CPU terminó de ejecutar todos sus hilos
         int j = 0;
-        for (int i = 0; i < cant_hilos; i++){
-            if (hilos_terminados[i] == true){
+        for (int i = 0; i < cant_hilos; i++) {
+            if (hilos_terminados[i] == true) {
                 j++;
             }
         }
-        if (j == cant_hilos){
+        if (j == cant_hilos) {
             terminado = true;
         }
         return terminado;
     }
 
-    private void cargar_hilos_memoria(){ //carga los hilos MIPS a la memoria del CPU
+    private void cargar_hilos_memoria() { //carga los hilos MIPS a la memoria del CPU
         int inicioMemoria = 128;
 
-        for (int i = 0; i < hilos.size(); i++){
+        for (int i = 0; i < hilos.size(); i++) {
             contexto[i][32] = inicioMemoria;
-            Path filePath = hilos.get(i).toPath() ;
+            Path filePath = hilos.get(i).toPath();
             try {
                 Scanner scanner = new Scanner(filePath);
                 while (scanner.hasNext()) {
@@ -302,39 +371,6 @@ public class CPU implements Runnable {
     }
 
     public void run() {
-        switch (id){
-            case 1:
-                if (lock.tryLock()) {
-                    try {
-                        System.out.println("Desde el run1: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
-                        prueba[0] = 5;
-                        System.out.println("Desde el run1: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
-                    } finally {
-                        lock.unlock();
-                    }
-                } else {
-                    System.out.println("Desde el run1 no pude entrar!!!");
-                }
-                break;
-            case 2:
-                if (lock.tryLock()) {
-                    try {
-                        System.out.println("Desde el run2: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
-                        prueba[1] = 8;
-                        System.out.println("Desde el run2: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
-                    } finally {
-                        //lock.unlock();
-                    }
-                } else {
-                    System.out.println("Desde el run2 no pude entrar!!!");
-                }
-                break;
-            case 3:
-                System.out.println("Desde el run3: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
-                prueba[2] = 10;
-                System.out.println("Desde el run3: " + prueba[0] + " " + prueba[1] + " " + prueba[2]);
-                break;
-        }
         while (true) {
             try {
                 barrera.await();
