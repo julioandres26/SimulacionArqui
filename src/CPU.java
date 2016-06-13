@@ -1,4 +1,3 @@
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -7,7 +6,7 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.locks.*;
+import java.util.concurrent.locks.Lock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,24 +32,31 @@ public class CPU implements Runnable {
     public int etiquetas_cache[] = new int[4]; //arreglo de las etiquetas inicializado en -1
     public int cache_de_instrucciones[][][] = new int[4][4][4]; //índice, parabra, byte.
 
-    public int[][] caches_dato1;
-    public int[][] caches_dato2;
-    public int[][] caches_dato3;
-    public Lock lock;
+    public int[][] cache_datos1;
+    public int[][] cache_datos2;
+    public int[][] cache_datos3;
+    
+    public int[] memoria_compartida1;
+    public int[] memoria_compartida2;
+    public int[] memoria_compartida3;
+    
+    public Lock lock_cache_datos1;
+    public Lock lock_cache_datos2;
+    public Lock lock_cache_datos3;
+    
+    public Lock lock_memoria_compartida1;
+    public Lock lock_memoria_compartida2;
+    public Lock lock_memoria_compartida3;
+    
+    public int prueba = 3;
 
-    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera, Lock lock, int caches_dato0[][], int caches_dato1[][], int caches_dato2[][]) {
+    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera) {
         this.id = id;
         this.quantum = quantum;
         this.quantum_original = quantum;
         this.barrera = barrera;
         this.hilos = hilos;
-
-        this.caches_dato1 = caches_dato0;
-        this.caches_dato2 = caches_dato1;
-        this.caches_dato3 = caches_dato2;
-
-        this.lock = lock;
-
+        
         pc = 128; //inicio de la primera instrucción
         pc_contexto = 0;
         cant_hilos = hilos.size();
@@ -248,62 +254,61 @@ public class CPU implements Runnable {
         pc += 4;
         pc = registros[RX];
     }
+    
+    private boolean leer(int RY, int RX, int n, int cache_datos[][], Lock lock_cache_datos) {
+        try {
+            int direccion_de_memoria = n + RY;
+            int bloque = direccion_de_memoria / 16;
+            int indice = bloque % 4; //índice de la caché (mapeo directo)
+
+            if ((cache_datos[indice][4] == bloque) && (cache_datos[indice][5] != 2)) { //está en mi caché (C ó M)
+                //ESTÁ EN MI CACHÉ -> LEER
+                int resultado_previo = direccion_de_memoria % 16;
+                int palabra = resultado_previo / 4;
+                System.out.println("indice = " + indice + " palabra = " + palabra);
+                System.out.println("cache_datos1 = " + cache_datos[indice][palabra]);
+                registros[RX] = cache_datos[indice][palabra];
+                return true;
+            } else {
+                //NO ESTÁ EN MI CACHÉ
+                return false;
+            }
+        } finally {
+            lock_cache_datos.unlock();
+        }
+    }
 
     public void LW(int RY, int RX, int n) {
-        // C = 0, M = 1, I = 2
+        //Etiquetas caché: C = 0, M = 1, I = 2
         switch (id) {
             case 1:
-                if (lock.tryLock()) {
-                    try {
-                        int direccion_de_memoria = n + RY;
-                        int bloque = direccion_de_memoria / 16;
-                        int indice = bloque % 4; //índice de la caché (mapeo directo)
+                if (lock_cache_datos1.tryLock()) {
+                    if (leer(RY, RX, n, cache_datos1, lock_cache_datos1)){ //pudo leer el dato porque estaba en la cache
                         
-                        if( (caches_dato1[indice][4] == bloque) && (caches_dato1[indice][5] != 2) ){
-                            //LEER
-                        } else {
-                            //NO ESTA
-                        }
-                    } finally {
-                        lock.unlock();
+                    } else { //no pudo leer el dato porque no estaba en la caché
+                        //buscar bloque víctima...
                     }
-                } else {
+                } else { //no pudo adquirir el lock
                     System.out.println("Desde el CPU 1 no pude entrar a mi cache de datos!!!");
                 }
                 break;
             case 2:
-                if (lock.tryLock()) {
-                    try {
-                        int direccion_de_memoria = n + RY;
-                        int bloque = direccion_de_memoria / 16;
-                        int indice = bloque % 4; //índice de la caché (mapeo directo)
+                if (lock_cache_datos2.tryLock()) {
+                    if (leer(RY, RX, n, cache_datos2, lock_cache_datos2)){ //pudo leer el dato porque estaba en la cache
                         
-                        if( (caches_dato2[indice][4] == bloque) && (caches_dato2[indice][5] != 2) ){
-                            //LEER
-                        } else {
-                            //NO ESTA
-                        }
-                    } finally {
-                        lock.unlock();
+                    } else { //no pudo leer el dato porque no estaba en la caché
+                        
                     }
                 } else {
                     System.out.println("Desde el CPU 2 no pude entrar a mi cache de datos!!!");
                 }
                 break;
             case 3:
-                if (lock.tryLock()) {
-                    try {
-                        int direccion_de_memoria = n + RY;
-                        int bloque = direccion_de_memoria / 16;
-                        int indice = bloque % 4; //índice de la caché (mapeo directo)
+                if (lock_cache_datos3.tryLock()) {
+                    if (leer(RY, RX, n, cache_datos1, lock_cache_datos1)){ //pudo leer el dato porque estaba en la cache
                         
-                        if( (caches_dato3[indice][4] == bloque) && (caches_dato3[indice][5] != 2) ){
-                            //LEER
-                        } else {
-                            //NO ESTA
-                        }
-                    } finally {
-                        lock.unlock();
+                    } else { //no pudo leer el dato porque no estaba en la caché
+                        
                     }
                 } else {
                     System.out.println("Desde el CPU 3 no pude entrar a mi cache de datos!!!");
@@ -369,8 +374,41 @@ public class CPU implements Runnable {
             }
         }
     }
+   
+    public void recibir_caches(int caches_dato1[][], int caches_dato2[][], int caches_dato3[][]) {
+        this.cache_datos1 = caches_dato1;
+        this.cache_datos2 = caches_dato2;
+        this.cache_datos3 = caches_dato3;
+        
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 6; j++) {
+                this.cache_datos1[i][j] = 1;
+                this.cache_datos2[i][j] = 1;
+                this.cache_datos3[i][j] = 1;
+            }
+        }
+    }
+    
+    public void recibir_memorias_compartidas(int memoria_compartida1[], int memoria_compartida2[], int memoria_compartida3[]) {
+        this.memoria_compartida1 = memoria_compartida1;
+        this.memoria_compartida2 = memoria_compartida2;
+        this.memoria_compartida3 = memoria_compartida3;
+    }
+    
+    public void recibir_lock_caches(Lock lock_cache_datos1, Lock lock_cache_datos2, Lock lock_cache_datos3) {
+        this.lock_cache_datos1 = lock_cache_datos1;
+        this.lock_cache_datos2 = lock_cache_datos2;
+        this.lock_cache_datos3 = lock_cache_datos3;
+    }
 
+    public void recibir_lock_memorias(Lock lock_memoria_compartida1, Lock lock_memoria_compartida2, Lock lock_memoria_compartida3) {
+        this.lock_memoria_compartida1 = lock_memoria_compartida1;
+        this.lock_memoria_compartida2 = lock_memoria_compartida2;
+        this.lock_memoria_compartida3 = lock_memoria_compartida3;
+    }
+    
     public void run() {
+//        LW(32, 5, 4); //13
         while (true) {
             try {
                 barrera.await();
