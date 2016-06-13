@@ -36,11 +36,21 @@ public class Main {
         List<File> archivosCPU2 = new ArrayList<>();
         List<File> archivosCPU3 = new ArrayList<>();
 
-        int caches_dato0[][] = new int[4][6];
         int caches_dato1[][] = new int[4][6];
         int caches_dato2[][] = new int[4][6];
+        int caches_dato3[][] = new int[4][6];
         
-        Lock lockPrueba = new ReentrantLock();
+        int memoria_compartida1[] = new int[32];
+        int memoria_compartida2[]= new int[32];
+        int memoria_compartida3[] = new int[32];
+        
+        Lock lock_cache_datos1 = new ReentrantLock();
+        Lock lock_cache_datos2 = new ReentrantLock();
+        Lock lock_cache_datos3 = new ReentrantLock();
+        
+        Lock lock_memoria_compartida1 = new ReentrantLock();
+        Lock lock_memoria_compartida2 = new ReentrantLock();
+        Lock lock_memoria_compartida3 = new ReentrantLock();
 
         int temporal = 1;
         for (int i = 0; i < archivos.length; i++) { //se reparten los archivos a cada CPU
@@ -69,9 +79,25 @@ public class Main {
 
         CyclicBarrier barrera = new CyclicBarrier(4); //barrera para la sincronización de los CPU
 
-        CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera, lockPrueba, caches_dato0, caches_dato1, caches_dato2);
-        CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera, lockPrueba, caches_dato0, caches_dato1, caches_dato2);
-        CPU cpu3 = new CPU(3, quantum, archivosCPU3, barrera, lockPrueba, caches_dato0, caches_dato1, caches_dato2);
+        CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera);
+        CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera);
+        CPU cpu3 = new CPU(3, quantum, archivosCPU3, barrera);
+        
+        cpu1.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
+        cpu2.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
+        cpu3.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
+        
+        cpu1.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
+        cpu2.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
+        cpu3.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
+        
+        cpu1.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
+        cpu2.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
+        cpu3.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
+        
+        cpu1.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
+        cpu2.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
+        cpu3.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
 
         Thread thread1 = new Thread(cpu1);
         Thread thread2 = new Thread(cpu2);
@@ -84,6 +110,9 @@ public class Main {
         int cpu1_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 1
         int cpu2_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 2
         int cpu3_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 3
+        
+        caches_dato1[2][2] = 17;
+        caches_dato1[2][1] = 13;
 
         int reloj = 0; //reloj de sincronización del hilo padre
         while (!cpu1.procesamiento_terminado() || !cpu2.procesamiento_terminado() || !cpu3.procesamiento_terminado()) {
@@ -130,8 +159,8 @@ public class Main {
                     + cpu3_reloj[i][0] + " terminó en " + cpu3_reloj[i][1] + ".");
 
         barreraGUI.await();
-
-        System.out.println("Desde el main: " + caches_dato0[0][0]);
+        
+        System.out.println("Desde el main: " + cpu1.prueba);
         System.exit(0);
     }
 }
