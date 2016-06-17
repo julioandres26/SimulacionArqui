@@ -6,6 +6,10 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+// GLOSARIO DE ETIQUETAS
+// Etiquetas caché: C = 0, M = 1, I = 2.
+// Etiquetas directorios: C = 0, M = 1, U = 2.
+
 public class Main {
 
     public static void main(String[] args) throws InterruptedException, BrokenBarrierException {
@@ -16,9 +20,11 @@ public class Main {
 
         barreraGUI.await();
 
+        // DESCOMENTAR ESTO PARA PODER UTILIZAR LA INTERFAZ GRAFICA
         //int quantum = Integer.parseInt(ventana.cantidad_quantum.getText());
         //int hilos = Integer.parseInt(ventana.cantidad_hilos.getText());
         //File[] archivos = ventana.ventana_buscar_archivos.getSelectedFiles();
+        // DESCOMENTAR HASTA AQUI.
         
         // Comentar esta seccion en caso de querer usar la GUI
         int quantum = 30;
@@ -36,21 +42,41 @@ public class Main {
         List<File> archivosCPU2 = new ArrayList<>();
         List<File> archivosCPU3 = new ArrayList<>();
 
-        int caches_dato1[][] = new int[4][6];
-        int caches_dato2[][] = new int[4][6];
-        int caches_dato3[][] = new int[4][6];
-        
-        int memoria_compartida1[] = new int[32];
-        int memoria_compartida2[]= new int[32];
-        int memoria_compartida3[] = new int[32];
-        
-        Lock lock_cache_datos1 = new ReentrantLock();
-        Lock lock_cache_datos2 = new ReentrantLock();
-        Lock lock_cache_datos3 = new ReentrantLock();
-        
-        Lock lock_memoria_compartida1 = new ReentrantLock();
-        Lock lock_memoria_compartida2 = new ReentrantLock();
-        Lock lock_memoria_compartida3 = new ReentrantLock();
+//        int caches_dato1[][] = new int[4][6];
+//        int caches_dato2[][] = new int[4][6];
+//        int caches_dato3[][] = new int[4][6];
+
+//        int memoria_compartida1[] = new int[32];
+//        int memoria_compartida2[]= new int[32];
+//        int memoria_compartida3[] = new int[32];
+
+//        Lock lock_cache_datos1 = new ReentrantLock();
+//        Lock lock_cache_datos2 = new ReentrantLock();
+//        Lock lock_cache_datos3 = new ReentrantLock();
+
+//        Lock lock_memoria_compartida1 = new ReentrantLock();
+//        Lock lock_memoria_compartida2 = new ReentrantLock();
+//        Lock lock_memoria_compartida3 = new ReentrantLock();
+
+        // [# de cache][# de indice][0->3 = palabras, 4 = etiqueta, 5 = estado]
+        int caches_de_datos[][][] = new int[3][4][6];
+
+        // [# de memoria compartida][32 enteros/palabras, representan 8 bloques que representan 128 bytes]
+        int memorias_compartidas[][] = new int [3][32];
+
+        // [# de directorio][# de bloque][0 = etiqueta, 1->3 = # de procesador]
+        int directorios[][][] = new int[3][8][4];
+
+        // array con los RLs de los tres procesadores
+        int registrosRL[] = new int[3];
+
+        Lock candados_directorios[] = new ReentrantLock[3];
+        Lock candados_caches[] = new ReentrantLock[3];
+
+        for (int i = 0; i <= 2; i++){
+            candados_directorios[i] = new ReentrantLock();
+            candados_caches[i] = new ReentrantLock();
+        }
 
         int temporal = 1;
         for (int i = 0; i < archivos.length; i++) { //se reparten los archivos a cada CPU
@@ -79,25 +105,25 @@ public class Main {
 
         CyclicBarrier barrera = new CyclicBarrier(4); //barrera para la sincronización de los CPU
 
-        CPU cpu1 = new CPU(1, quantum, archivosCPU1, barrera);
-        CPU cpu2 = new CPU(2, quantum, archivosCPU2, barrera);
-        CPU cpu3 = new CPU(3, quantum, archivosCPU3, barrera);
+        CPU cpu1 = new CPU(0, quantum, archivosCPU1, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
+        CPU cpu2 = new CPU(1, quantum, archivosCPU2, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
+        CPU cpu3 = new CPU(2, quantum, archivosCPU3, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
         
-        cpu1.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
-        cpu2.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
-        cpu3.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
-        
-        cpu1.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
-        cpu2.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
-        cpu3.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
-        
-        cpu1.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
-        cpu2.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
-        cpu3.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
-        
-        cpu1.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
-        cpu2.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
-        cpu3.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
+//        cpu1.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
+//        cpu2.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
+//        cpu3.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
+//
+//        cpu1.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
+//        cpu2.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
+//        cpu3.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
+//
+//        cpu1.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
+//        cpu2.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
+//        cpu3.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
+//
+//        cpu1.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
+//        cpu2.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
+//        cpu3.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
 
         Thread thread1 = new Thread(cpu1);
         Thread thread2 = new Thread(cpu2);

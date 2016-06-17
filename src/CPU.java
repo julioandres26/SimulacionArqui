@@ -32,31 +32,45 @@ public class CPU implements Runnable {
     public int etiquetas_cache[] = new int[4]; //arreglo de las etiquetas inicializado en -1
     public int cache_de_instrucciones[][][] = new int[4][4][4]; //índice, parabra, byte.
 
-    public int[][] cache_datos1;
-    public int[][] cache_datos2;
-    public int[][] cache_datos3;
-    
-    public int[] memoria_compartida1;
-    public int[] memoria_compartida2;
-    public int[] memoria_compartida3;
-    
-    public Lock lock_cache_datos1;
-    public Lock lock_cache_datos2;
-    public Lock lock_cache_datos3;
-    
-    public Lock lock_memoria_compartida1;
-    public Lock lock_memoria_compartida2;
-    public Lock lock_memoria_compartida3;
+//    public int[][] cache_datos1;
+//    public int[][] cache_datos2;
+//    public int[][] cache_datos3;
+//
+//    public int[] memoria_compartida1;
+//    public int[] memoria_compartida2;
+//    public int[] memoria_compartida3;
+//
+//    public Lock lock_cache_datos1;
+//    public Lock lock_cache_datos2;
+//    public Lock lock_cache_datos3;
+//
+//    public Lock lock_memoria_compartida1;
+//    public Lock lock_memoria_compartida2;
+//    public Lock lock_memoria_compartida3;
+
+    int caches_de_datos[][][];
+    int memorias_compartidas[][];
+    int directorios[][][];
+    int registrosRL[];
+    Lock candados_directorios[];
+    Lock candados_caches[];
     
     public int prueba = 3;
 
-    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera) {
+    public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera, int caches_de_datos[][][], int memorias_compartidas[][], int directorios[][][], Lock candados_caches[], Lock candados_directorios[], int registrosRL[]) {
         this.id = id;
         this.quantum = quantum;
         this.quantum_original = quantum;
         this.barrera = barrera;
         this.hilos = hilos;
-        
+
+        this.caches_de_datos = caches_de_datos;
+        this.memorias_compartidas = memorias_compartidas;
+        this.directorios = directorios;
+        this.registrosRL = registrosRL;
+        this.candados_caches = candados_caches;
+        this.candados_directorios = candados_directorios;
+
         pc = 128; //inicio de la primera instrucción
         pc_contexto = 0;
         cant_hilos = hilos.size();
@@ -185,6 +199,8 @@ public class CPU implements Runnable {
 
     public void cambio_contexto() { //cambia de contexto al hilo actual por el siguiente en la cola (actual+1)
         int siguiente_hilo = (hilo_actual + 1) % cant_hilos;
+        // ATENCION NO OLVIDAR al cambiar contexto tambien actualizar el RL en el array de RLs
+        // DEBE ser inicializado al cargar un contexto en -1 el RL.
 
         if (!procesamiento_terminado()) {
             while (hilos_terminados[siguiente_hilo] == true) {
@@ -254,67 +270,67 @@ public class CPU implements Runnable {
         pc += 4;
         pc = registros[RX];
     }
-    
-    private boolean leer(int RY, int RX, int n, int cache_datos[][], Lock lock_cache_datos) {
-        try {
-            int direccion_de_memoria = n + RY;
-            int bloque = direccion_de_memoria / 16;
-            int indice = bloque % 4; //índice de la caché (mapeo directo)
-
-            if ((cache_datos[indice][4] == bloque) && (cache_datos[indice][5] != 2)) { //está en mi caché (C ó M)
-                //ESTÁ EN MI CACHÉ -> LEER
-                int resultado_previo = direccion_de_memoria % 16;
-                int palabra = resultado_previo / 4;
-                System.out.println("indice = " + indice + " palabra = " + palabra);
-                System.out.println("cache_datos1 = " + cache_datos[indice][palabra]);
-                registros[RX] = cache_datos[indice][palabra];
-                return true;
-            } else {
-                //NO ESTÁ EN MI CACHÉ
-                return false;
-            }
-        } finally {
-            lock_cache_datos.unlock();
-        }
-    }
 
     public void LW(int RY, int RX, int n) {
-        //Etiquetas caché: C = 0, M = 1, I = 2
-        switch (id) {
-            case 1:
-                if (lock_cache_datos1.tryLock()) {
-                    if (leer(RY, RX, n, cache_datos1, lock_cache_datos1)){ //pudo leer el dato porque estaba en la cache
-                        
-                    } else { //no pudo leer el dato porque no estaba en la caché
-                        //buscar bloque víctima...
-                    }
-                } else { //no pudo adquirir el lock
-                    System.out.println("Desde el CPU 1 no pude entrar a mi cache de datos!!!");
-                }
-                break;
-            case 2:
-                if (lock_cache_datos2.tryLock()) {
-                    if (leer(RY, RX, n, cache_datos2, lock_cache_datos2)){ //pudo leer el dato porque estaba en la cache
-                        
-                    } else { //no pudo leer el dato porque no estaba en la caché
-                        
-                    }
+        int direccion_de_memoria = n + RY; //Calcular la direccion de memoria, al sumar el inmediato con el registro RY.
+        int bloque = direccion_de_memoria / 16; //Numero de bloque donde está la direccion de memoria.
+        int memoria_compartida_CPU = bloque / 8; //# de memoria compartida (cual CPU) está el bloque.
+        int indice = bloque % 4; //índice de la caché para el bloque actual (mapeo directo).
+
+        if (candados_caches[id].tryLock()) {
+            try {
+                if ((cache_datos[indice][4] == bloque) && (cache_datos[indice][5] != 2)) { //está en mi caché (C ó M)
+                    //ESTÁ EN MI CACHÉ -> LEER
+                    int resultado_previo = direccion_de_memoria % 16;
+                    int palabra = resultado_previo / 4;
+                    System.out.println("indice = " + indice + " palabra = " + palabra);
+                    System.out.println("cache_datos1 = " + cache_datos[indice][palabra]);
+                    registros[RX] = cache_datos[indice][palabra];
                 } else {
-                    System.out.println("Desde el CPU 2 no pude entrar a mi cache de datos!!!");
+                    //NO ESTÁ EN MI CACHÉ
                 }
-                break;
-            case 3:
-                if (lock_cache_datos3.tryLock()) {
-                    if (leer(RY, RX, n, cache_datos1, lock_cache_datos1)){ //pudo leer el dato porque estaba en la cache
-                        
-                    } else { //no pudo leer el dato porque no estaba en la caché
-                        
-                    }
-                } else {
-                    System.out.println("Desde el CPU 3 no pude entrar a mi cache de datos!!!");
-                }
-                break;
+            } finally {
+                lock_cache_datos.unlock();
+            }
+        } else { //no pudo adquirir el lock
+            System.out.println("Desde el CPU " + id + " no pude entrar a mi cache de datos!!!");
         }
+
+        //        switch (id) {
+        //            case 1:
+        //                if (lock_cache_datos1.tryLock()) {
+        //                    if (leer(RY, RX, n, cache_datos1, lock_cache_datos1)){ //pudo leer el dato porque estaba en la cache
+        //
+        //                    } else { //no pudo leer el dato porque no estaba en la caché
+        //                        //buscar bloque víctima...
+        //                    }
+        //                } else { //no pudo adquirir el lock
+        //                    System.out.println("Desde el CPU 1 no pude entrar a mi cache de datos!!!");
+        //                }
+        //                break;
+        //            case 2:
+        //                if (lock_cache_datos2.tryLock()) {
+        //                    if (leer(RY, RX, n, cache_datos2, lock_cache_datos2)){ //pudo leer el dato porque estaba en la cache
+        //
+        //                    } else { //no pudo leer el dato porque no estaba en la caché
+        //
+        //                    }
+        //                } else {
+        //                    System.out.println("Desde el CPU 2 no pude entrar a mi cache de datos!!!");
+        //                }
+        //                break;
+        //            case 3:
+        //                if (lock_cache_datos3.tryLock()) {
+        //                    if (leer(RY, RX, n, cache_datos1, lock_cache_datos1)){ //pudo leer el dato porque estaba en la cache
+        //
+        //                    } else { //no pudo leer el dato porque no estaba en la caché
+        //
+        //                    }
+        //                } else {
+        //                    System.out.println("Desde el CPU 3 no pude entrar a mi cache de datos!!!");
+        //                }
+        //                break;
+        //        }
     }
 
     public void FIN() {
@@ -375,37 +391,37 @@ public class CPU implements Runnable {
         }
     }
    
-    public void recibir_caches(int caches_dato1[][], int caches_dato2[][], int caches_dato3[][]) {
-        this.cache_datos1 = caches_dato1;
-        this.cache_datos2 = caches_dato2;
-        this.cache_datos3 = caches_dato3;
-        
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 6; j++) {
-                this.cache_datos1[i][j] = 1;
-                this.cache_datos2[i][j] = 1;
-                this.cache_datos3[i][j] = 1;
-            }
-        }
-    }
-    
-    public void recibir_memorias_compartidas(int memoria_compartida1[], int memoria_compartida2[], int memoria_compartida3[]) {
-        this.memoria_compartida1 = memoria_compartida1;
-        this.memoria_compartida2 = memoria_compartida2;
-        this.memoria_compartida3 = memoria_compartida3;
-    }
-    
-    public void recibir_lock_caches(Lock lock_cache_datos1, Lock lock_cache_datos2, Lock lock_cache_datos3) {
-        this.lock_cache_datos1 = lock_cache_datos1;
-        this.lock_cache_datos2 = lock_cache_datos2;
-        this.lock_cache_datos3 = lock_cache_datos3;
-    }
-
-    public void recibir_lock_memorias(Lock lock_memoria_compartida1, Lock lock_memoria_compartida2, Lock lock_memoria_compartida3) {
-        this.lock_memoria_compartida1 = lock_memoria_compartida1;
-        this.lock_memoria_compartida2 = lock_memoria_compartida2;
-        this.lock_memoria_compartida3 = lock_memoria_compartida3;
-    }
+//    public void recibir_caches(int caches_dato1[][], int caches_dato2[][], int caches_dato3[][]) {
+//        this.cache_datos1 = caches_dato1;
+//        this.cache_datos2 = caches_dato2;
+//        this.cache_datos3 = caches_dato3;
+//
+//        for (int i = 0; i < 4; i++) {
+//            for (int j = 0; j < 6; j++) {
+//                this.cache_datos1[i][j] = 1;
+//                this.cache_datos2[i][j] = 1;
+//                this.cache_datos3[i][j] = 1;
+//            }
+//        }
+//    }
+//
+//    public void recibir_memorias_compartidas(int memoria_compartida1[], int memoria_compartida2[], int memoria_compartida3[]) {
+//        this.memoria_compartida1 = memoria_compartida1;
+//        this.memoria_compartida2 = memoria_compartida2;
+//        this.memoria_compartida3 = memoria_compartida3;
+//    }
+//
+//    public void recibir_lock_caches(Lock lock_cache_datos1, Lock lock_cache_datos2, Lock lock_cache_datos3) {
+//        this.lock_cache_datos1 = lock_cache_datos1;
+//        this.lock_cache_datos2 = lock_cache_datos2;
+//        this.lock_cache_datos3 = lock_cache_datos3;
+//    }
+//
+//    public void recibir_lock_memorias(Lock lock_memoria_compartida1, Lock lock_memoria_compartida2, Lock lock_memoria_compartida3) {
+//        this.lock_memoria_compartida1 = lock_memoria_compartida1;
+//        this.lock_memoria_compartida2 = lock_memoria_compartida2;
+//        this.lock_memoria_compartida3 = lock_memoria_compartida3;
+//    }
     
     public void run() {
 //        LW(32, 5, 4); //13
