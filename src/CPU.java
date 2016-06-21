@@ -32,22 +32,6 @@ public class CPU implements Runnable {
     public int etiquetas_cache[] = new int[4]; //arreglo de las etiquetas inicializado en -1
     public int cache_de_instrucciones[][][] = new int[4][4][4]; //índice, parabra, byte.
 
-//    public int[][] cache_datos1;
-//    public int[][] cache_datos2;
-//    public int[][] cache_datos3;
-//
-//    public int[] memoria_compartida1;
-//    public int[] memoria_compartida2;
-//    public int[] memoria_compartida3;
-//
-//    public Lock lock_cache_datos1;
-//    public Lock lock_cache_datos2;
-//    public Lock lock_cache_datos3;
-//
-//    public Lock lock_memoria_compartida1;
-//    public Lock lock_memoria_compartida2;
-//    public Lock lock_memoria_compartida3;
-
     int caches_de_datos[][][];
     int memorias_compartidas[][];
     int directorios[][][];
@@ -272,27 +256,57 @@ public class CPU implements Runnable {
     }
 
     public void LW(int RY, int RX, int n) {
+        //ETIQUETAS CACHE: C = 0, M = 1, I = 2
+        //ETIQUETAS DIRECTORIO: C = 0, M = 1, U = 2
         int direccion_de_memoria = n + RY; //Calcular la direccion de memoria, al sumar el inmediato con el registro RY.
         int bloque = direccion_de_memoria / 16; //Numero de bloque donde está la direccion de memoria.
         int memoria_compartida_CPU = bloque / 8; //# de memoria compartida (cual CPU) está el bloque.
         int indice = bloque % 4; //índice de la caché para el bloque actual (mapeo directo).
 
-        if (candados_caches[id].tryLock()) {
+        if (candados_caches[id].tryLock()) { //tryLock en mi caché
             try {
-                if ((cache_datos[indice][4] == bloque) && (cache_datos[indice][5] != 2)) { //está en mi caché (C ó M)
-                    //ESTÁ EN MI CACHÉ -> LEER
+                if ((caches_de_datos[id][indice][4] == bloque) && (caches_de_datos[id][indice][5] != 2)) {
+                    //SÍ ESTÁ EN MI CACHÉ (C Ó M) -> LEER
                     int resultado_previo = direccion_de_memoria % 16;
                     int palabra = resultado_previo / 4;
                     System.out.println("indice = " + indice + " palabra = " + palabra);
-                    System.out.println("cache_datos1 = " + cache_datos[indice][palabra]);
-                    registros[RX] = cache_datos[indice][palabra];
+                    System.out.println("cache_datos1 = " + caches_de_datos[id][indice][palabra]);
+                    registros[RX] = caches_de_datos[id][indice][palabra];
                 } else {
-                    //NO ESTÁ EN MI CACHÉ
+                    //NO ESTÁ EN MI CACHÉ -> BUSCAR DIRECTORIO DEL BLOQUE VÍCTIMA EN MI CACHÉ
+                    int directorio_de_victima = bloque / 8; //directorio de víctima
+                    if (candados_directorios[directorio_de_victima].tryLock()) {
+                        try {
+                            //ACTUALIZAR DIRECTORIO DE LA VICTIMA
+                            if (caches_de_datos[id][indice][5] == 0) {
+                                //BLOQUE VÍCTIMA ESTÁ C
+                                int cont = 0;
+                                for (int i = 0; i < 3; i++) {
+                                    if (directorios[directorio_de_victima][bloque][i] == 1) {
+                                        cont++;
+                                    }
+                                    if (directorios[directorio_de_victima][bloque][i] == id) {
+                                        directorios[directorio_de_victima][bloque][i] = 0;
+                                    }
+                                }
+                                if (cont == 1) {
+                                    directorios[directorio_de_victima][bloque][3] = 2; //cambia la etiqueta a U
+                                }
+                            } else {
+                                //BLOQUE VÍCTIMA ESTÁ M
+                            }
+                        } finally {
+                            candados_directorios[directorio_de_victima].unlock();
+                        }
+                    } else { //no pudo adquirir el lock del directorio de la víctima 
+                        System.out.println("Desde el CPU " + id + " no pude entrar al directorio de la víctima!!!");
+                    }
+                    //}
                 }
             } finally {
-                lock_cache_datos.unlock();
+                candados_caches[id].unlock();
             }
-        } else { //no pudo adquirir el lock
+        } else { //no pudo adquirir el lock de mi cache
             System.out.println("Desde el CPU " + id + " no pude entrar a mi cache de datos!!!");
         }
 
@@ -391,38 +405,6 @@ public class CPU implements Runnable {
         }
     }
    
-//    public void recibir_caches(int caches_dato1[][], int caches_dato2[][], int caches_dato3[][]) {
-//        this.cache_datos1 = caches_dato1;
-//        this.cache_datos2 = caches_dato2;
-//        this.cache_datos3 = caches_dato3;
-//
-//        for (int i = 0; i < 4; i++) {
-//            for (int j = 0; j < 6; j++) {
-//                this.cache_datos1[i][j] = 1;
-//                this.cache_datos2[i][j] = 1;
-//                this.cache_datos3[i][j] = 1;
-//            }
-//        }
-//    }
-//
-//    public void recibir_memorias_compartidas(int memoria_compartida1[], int memoria_compartida2[], int memoria_compartida3[]) {
-//        this.memoria_compartida1 = memoria_compartida1;
-//        this.memoria_compartida2 = memoria_compartida2;
-//        this.memoria_compartida3 = memoria_compartida3;
-//    }
-//
-//    public void recibir_lock_caches(Lock lock_cache_datos1, Lock lock_cache_datos2, Lock lock_cache_datos3) {
-//        this.lock_cache_datos1 = lock_cache_datos1;
-//        this.lock_cache_datos2 = lock_cache_datos2;
-//        this.lock_cache_datos3 = lock_cache_datos3;
-//    }
-//
-//    public void recibir_lock_memorias(Lock lock_memoria_compartida1, Lock lock_memoria_compartida2, Lock lock_memoria_compartida3) {
-//        this.lock_memoria_compartida1 = lock_memoria_compartida1;
-//        this.lock_memoria_compartida2 = lock_memoria_compartida2;
-//        this.lock_memoria_compartida3 = lock_memoria_compartida3;
-//    }
-    
     public void run() {
 //        LW(32, 5, 4); //13
         while (true) {
