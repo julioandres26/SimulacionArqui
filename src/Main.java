@@ -42,29 +42,13 @@ public class Main {
         List<File> archivosCPU2 = new ArrayList<>();
         List<File> archivosCPU3 = new ArrayList<>();
 
-//        int caches_dato1[][] = new int[4][6];
-//        int caches_dato2[][] = new int[4][6];
-//        int caches_dato3[][] = new int[4][6];
-
-//        int memoria_compartida1[] = new int[32];
-//        int memoria_compartida2[]= new int[32];
-//        int memoria_compartida3[] = new int[32];
-
-//        Lock lock_cache_datos1 = new ReentrantLock();
-//        Lock lock_cache_datos2 = new ReentrantLock();
-//        Lock lock_cache_datos3 = new ReentrantLock();
-
-//        Lock lock_memoria_compartida1 = new ReentrantLock();
-//        Lock lock_memoria_compartida2 = new ReentrantLock();
-//        Lock lock_memoria_compartida3 = new ReentrantLock();
-
         // [# de cache][# de indice][0->3 = palabras, 4 = etiqueta, 5 = estado]
         int caches_de_datos[][][] = new int[3][4][6];
 
         // [# de memoria compartida][32 enteros/palabras, representan 8 bloques que representan 128 bytes]
         int memorias_compartidas[][] = new int [3][32];
 
-        // [# de directorio][# de bloque][0 = etiqueta, 1->3 = # de procesador]
+        // [# de directorio][# de bloque][0->2 = # de procesador, 3 = etiqueta]
         int directorios[][][] = new int[3][8][4];
 
         // array con los RLs de los tres procesadores
@@ -109,22 +93,6 @@ public class Main {
         CPU cpu2 = new CPU(1, quantum, archivosCPU2, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
         CPU cpu3 = new CPU(2, quantum, archivosCPU3, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
         
-//        cpu1.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
-//        cpu2.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
-//        cpu3.recibir_caches(caches_dato1, caches_dato2, caches_dato3);
-//
-//        cpu1.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
-//        cpu2.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
-//        cpu3.recibir_lock_caches(lock_cache_datos1, lock_cache_datos2, lock_cache_datos3);
-//
-//        cpu1.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
-//        cpu2.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
-//        cpu3.recibir_memorias_compartidas(memoria_compartida1, memoria_compartida2, memoria_compartida3);
-//
-//        cpu1.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
-//        cpu2.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
-//        cpu3.recibir_lock_memorias(lock_memoria_compartida1, lock_memoria_compartida2, lock_memoria_compartida3);
-
         Thread thread1 = new Thread(cpu1);
         Thread thread2 = new Thread(cpu2);
         Thread thread3 = new Thread(cpu3);
@@ -137,9 +105,6 @@ public class Main {
         int cpu2_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 2
         int cpu3_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 3
         
-        caches_dato1[2][2] = 17;
-        caches_dato1[2][1] = 13;
-
         int reloj = 0; //reloj de sincronización del hilo padre
         while (!cpu1.procesamiento_terminado() || !cpu2.procesamiento_terminado() || !cpu3.procesamiento_terminado()) {
             barrera.await();
