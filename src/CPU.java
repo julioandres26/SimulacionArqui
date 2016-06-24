@@ -291,6 +291,7 @@ public class CPU implements Runnable {
                     // ENTRAMOS A LIDIAR CON LA VICTIMA
                     if (caches_de_datos[id][indice][5] != 2){ // La etiqueta de la victima es diferente de I?
                         int bloque_victima = caches_de_datos[id][indice][4]; //Busca la etiqueta del bloque victima
+                        int indice_de_directorio_de_bloque_victima = bloque_victima % 8;
                         int directorio_o_memoria_compartida_de_victima = bloque_victima / 8;
                         int indice_de_directorio_de_bloque_victima = bloque_victima & 8;
                         if (candados_directorios[directorio_o_memoria_compartida_de_victima].tryLock()){
