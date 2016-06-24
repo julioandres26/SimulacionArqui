@@ -21,21 +21,21 @@ public class Main {
         barreraGUI.await();
 
         // DESCOMENTAR ESTO PARA PODER UTILIZAR LA INTERFAZ GRAFICA
-        //int quantum = Integer.parseInt(ventana.cantidad_quantum.getText());
-        //int hilos = Integer.parseInt(ventana.cantidad_hilos.getText());
-        //File[] archivos = ventana.ventana_buscar_archivos.getSelectedFiles();
+//        int quantum = Integer.parseInt(ventana.cantidad_quantum.getText());
+//        int hilos = Integer.parseInt(ventana.cantidad_hilos.getText());
+//        File[] archivos = ventana.ventana_buscar_archivos.getSelectedFiles();
         // DESCOMENTAR HASTA AQUI.
         
         // Comentar esta seccion en caso de querer usar la GUI
         int quantum = 30;
-        int hilos = 6;
-        File[] archivos = new File[6];
-        archivos[0] = new File("C:/Users/A71279/Documents/1.txt");
-        archivos[1] = new File("C:/Users/A71279/Documents/2.txt");
-        archivos[2] = new File("C:/Users/A71279/Documents/3.txt");
-        archivos[3] = new File("C:/Users/A71279/Documents/4.txt");
-        archivos[4] = new File("C:/Users/A71279/Documents/5.txt");
-        archivos[5] = new File("C:/Users/A71279/Documents/6.txt");
+        int hilos = 3;
+        File[] archivos = new File[3];
+        archivos[0] = new File("/Users/Julio/3HilillossoloconLWs-v4/B.txt");
+        archivos[1] = new File("/Users/Julio/3HilillossoloconLWs-v4/B.txt");
+        archivos[2] = new File("/Users/Julio/3HilillossoloconLWs-v4/B.txt");
+//        archivos[3] = new File("C:/Users/A71279/Documents/4.txt");
+//        archivos[4] = new File("C:/Users/A71279/Documents/5.txt");
+//        archivos[5] = new File("C:/Users/A71279/Documents/6.txt");
         //Fin de seccion
 
         List<File> archivosCPU1 = new ArrayList<>();
@@ -44,12 +44,31 @@ public class Main {
 
         // [# de cache][# de indice][0->3 = palabras, 4 = etiqueta, 5 = estado]
         int caches_de_datos[][][] = new int[3][4][6];
+        for (int i = 0; i < 3; i++){
+            for (int j = 0; j < 4; j++){
+                for (int k = 0; k < 4; k++){
+                    caches_de_datos[i][j][k] = 0;
+                }
+                caches_de_datos[i][j][4] = -1;
+                caches_de_datos[i][j][5] = 2;
+            }
+        }
 
         // [# de memoria compartida][32 enteros/palabras, representan 8 bloques que representan 128 bytes]
         int memorias_compartidas[][] = new int [3][32];
+        for (int i = 0; i < 3; i++){
+            for (int j = 0; j < 32; j++){
+                memorias_compartidas[i][j] = 1;
+            }
+        }
 
         // [# de directorio][# de bloque][0->2 = # de procesador, 3 = etiqueta]
         int directorios[][][] = new int[3][8][4];
+        for (int i = 0; i < 3; i++){
+            for (int j = 0; j < 8; j++){
+                directorios[i][j][3] = 2;
+            }
+        }
 
         // array con los RLs de los tres procesadores
         int registrosRL[] = new int[3];
