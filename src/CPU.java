@@ -331,7 +331,7 @@ public class CPU implements Runnable {
                                 // Como está M en otro CPU, debo bajarlo a memoria primero
                                 int CPU_que_tiene_bloque_modificado = -1; // Esta valor es por defecto, para que compile.
                                 for (int i = 0; i < 3; i++){
-                                    if (directorios[memoria_compartida_CPU][bloque][i] == 1){
+                                    if (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][i] == 1){
                                         CPU_que_tiene_bloque_modificado = i;
                                     }
                                 }
@@ -344,8 +344,8 @@ public class CPU implements Runnable {
                                         caches_de_datos[id][indice][4] = bloque; //Se actualiza la etiqueta
                                         caches_de_datos[id][indice][5] = 0; //Se pone C en el estado
                                         caches_de_datos[CPU_que_tiene_bloque_modificado][indice][5] = 0;
-                                        directorios[memoria_compartida_CPU][bloque][3] = 0;
-                                        directorios[memoria_compartida_CPU][bloque][id] = 1;
+                                        directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] = 0;
+                                        directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][id] = 1;
 
                                         // LEER porque ya subimos bloque a nuestra caché entonces estamos como el primer caso
                                         int resultado_previo = direccion_de_memoria % 16;
@@ -367,8 +367,8 @@ public class CPU implements Runnable {
                                 }
                                 caches_de_datos[id][indice][4] = bloque; //Se actualiza la etiqueta
                                 caches_de_datos[id][indice][5] = 0; //Se pone C en el estado
-                                directorios[memoria_compartida_CPU][bloque][id] = 1;
-                                directorios[memoria_compartida_CPU][bloque][3] = 0;
+                                directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][id] = 1;
+                                directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] = 0;
 
                                 //LEER
                                 int resultado_previo = direccion_de_memoria % 16;
