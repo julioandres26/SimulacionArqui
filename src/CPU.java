@@ -288,26 +288,27 @@ public class CPU implements Runnable {
                     // ENTRAMOS A LIDIAR CON LA VICTIMA
                     if (caches_de_datos[id][indice][5] != 2){ // La etiqueta de la victima es diferente de I?
                         int bloque_victima = caches_de_datos[id][indice][4]; //Busca la etiqueta del bloque victima
+                        int indice_de_directorio_de_bloque_victima = bloque_victima % 8;
                         int directorio_o_memoria_compartida_de_victima = bloque_victima / 8;
                         if (candados_directorios[directorio_o_memoria_compartida_de_victima].tryLock()){
                             try {
                                 if (caches_de_datos[id][indice][5] == 0) { //Pregunto si la etiqueta del bloque victima es C.
                                     // VICTIMA ESTA COMPARTIDA
-                                    directorios[directorio_o_memoria_compartida_de_victima][bloque_victima][id] = 0; // quito el C de la casilla de este procesador
+                                    directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][id] = 0; // quito el C de la casilla de este procesador
                                     int cont = 0;
                                     for (int i = 0; i < 3; i++) { // cuento cuantos procesadores aun la tienen compartida
-                                        if (directorios[directorio_o_memoria_compartida_de_victima][bloque_victima][i] == 1) {
+                                        if (directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][i] == 1) {
                                             cont++;
                                         }
                                     }
                                     if (cont == 0) { // si ningun procesador la tiene compartida, pongo U
-                                        directorios[directorio_o_memoria_compartida_de_victima][bloque_victima][3] = 2; //cambia la etiqueta a U
+                                        directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][3] = 2; //cambia la etiqueta a U
                                     }
                                 } else {
                                     // VICTIMA ESTA MODIFICADA
                                     // Vamos a actulizar directorios
-                                    directorios[directorio_o_memoria_compartida_de_victima][bloque_victima][id] = 0; //Se modifica para el procesador actual y se pone en 0.
-                                    directorios[directorio_o_memoria_compartida_de_victima][bloque_victima][3] = 2; //Se modifica la etiqueta y se pone en U.
+                                    directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][id] = 0; //Se modifica para el procesador actual y se pone en 0.
+                                    directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][3] = 2; //Se modifica la etiqueta y se pone en U.
                                     for (int i = 0; i < 4; i++){ // MOVEMOS VICTIMA A MEMORIA
                                         memorias_compartidas[directorio_o_memoria_compartida_de_victima][((bloque_victima % 8) * 4) + i] = caches_de_datos[id][indice][i];
                                     }
