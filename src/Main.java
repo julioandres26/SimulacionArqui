@@ -30,9 +30,9 @@ public class Main {
         int quantum = 30;
         int hilos = 3;
         File[] archivos = new File[3];
-        archivos[0] = new File("/Users/Julio/3HilillossoloconLWs-v4/B.txt");
+        archivos[0] = new File("/Users/Julio/3HilillossoloconLWs-v4/A.txt");
         archivos[1] = new File("/Users/Julio/3HilillossoloconLWs-v4/B.txt");
-        archivos[2] = new File("/Users/Julio/3HilillossoloconLWs-v4/B.txt");
+        archivos[2] = new File("/Users/Julio/3HilillossoloconLWs-v4/C.txt");
 //        archivos[3] = new File("C:/Users/A71279/Documents/4.txt");
 //        archivos[4] = new File("C:/Users/A71279/Documents/5.txt");
 //        archivos[5] = new File("C:/Users/A71279/Documents/6.txt");
