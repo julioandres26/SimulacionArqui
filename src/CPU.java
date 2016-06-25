@@ -172,6 +172,10 @@ public class CPU implements Runnable {
                 break;
             case 35:
                 LW(ir[1], ir[2], ir[3]);
+                break;
+            case 43:
+                LW(ir[1], ir[2], ir[3]);
+                break;
             case 63:
                 FIN();
                 break;
@@ -393,6 +397,90 @@ public class CPU implements Runnable {
                 candados_caches[id].unlock();
             }
         } else { //no pudo adquirir el lock de mi cache
+            pc = pc - 4;
+            System.out.println("Desde el CPU " + id + " no pude entrar a mi cache de datos!!!");
+        }
+    }
+    
+    public void SW(int RY, int RX, int n) {
+        //ETIQUETAS CACHE: C = 0, M = 1, I = 2
+        //ETIQUETAS DIRECTORIO: C = 0, M = 1, U = 2
+
+        pc += 4;
+
+        int direccion_de_memoria = n + registros[RY]; //Calcular la direccion de memoria, al sumar el inmediato con el valor del registro RY.
+        int bloque = direccion_de_memoria / 16; //Numero de bloque donde está la direccion de memoria.
+        int memoria_compartida_CPU = bloque / 8; //# de memoria compartida (cual CPU) está el bloque.
+        int indice = bloque % 4; //índice de la caché para el bloque a escribir (mapeo directo).
+        int palabra = (direccion_de_memoria % 16) / 4; //palabra que se va a escribir
+        int indice_de_directorio_de_bloque_a_escribir = bloque % 8;
+
+        // cache_de_datos[3][4][6] -> [# de cache][# de indice][0->3 = palabras, 4 = etiqueta, 5 = estado]
+        // directorios[3][8][4] -> [# de directorio][# de bloque][0->2 = # de procesador, 3 = etiqueta]
+        if (candados_caches[id].tryLock()) { //tryLock en mi caché
+            try {
+                if (caches_de_datos[id][indice][4] == bloque) { //SÍ ESTÁ EN MI CACHÉ
+                    if ((caches_de_datos[id][indice][5] == 1)) { //ESTÁ EN MI CACHÉ M -> ESCRIBIR A CACHÉ
+                        caches_de_datos[id][indice][palabra] = registros[RX];
+                    } else { //ESTÁ EN MI CACHÉ C -> ACTUALIZAR DIRECTORIO DEL BLOQUE A ESCRIBIR
+                        if (candados_directorios[memoria_compartida_CPU].tryLock()) {
+                            try {
+                                //revisar si está compartido en alguna otra caché más
+                                int cont = 0;
+                                for (int i = 0; i < 3; i++) {
+                                    if (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_escribir][i] == 1) {
+                                        cont += 1;
+                                    }
+                                }
+                                if (cont == 1) { //sólo está en mi caché
+                                    //escribo y actualizo la caché y el directorio del bloque a escribir (de C a M)
+                                    caches_de_datos[id][indice][palabra] = registros[RX];
+                                    caches_de_datos[id][indice][5] = 1;
+                                    directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_escribir][3] = 1;
+                                } else if (cont == 2) { //está en dos cachés (mi caché y otra)
+                                    int cache_remota = 0; //# de la otra caché donde está compartido el bloque
+                                    for (int i = 0; i < 3; i++) {
+                                        if ((i != id) && (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_escribir][i] == 1)) {
+                                            cache_remota = i;
+                                        }
+                                    }
+                                    if (candados_caches[cache_remota].tryLock()) {
+                                        try {
+                                            //leo y actualizo mi caché (de C a M)
+                                            caches_de_datos[id][indice][palabra] = registros[RX];
+                                            caches_de_datos[id][indice][5] = 1;
+                                            //invalido el bloque en la caché remota y actualizo el directorio
+                                            caches_de_datos[cache_remota][indice][5] = 2; //I
+                                            directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_escribir][cache_remota] = 0;
+                                            directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_escribir][3] = 1; //M
+                                        } finally {
+                                            candados_caches[cache_remota].unlock();
+                                        }
+                                    } else {
+                                        pc = pc - 4;
+                                        System.out.println("Desde el CPU " + id + " no pude entrar a la cache de datos de " + cache_remota + "!!!");
+                                    }
+                                } else { //está compartido en las tres cachés
+                                    //se pide una caché, si me la dan la actualizo y la libero
+                                    //si no me la dan trato con la otra caché, pero en este caso hay que hacer pc -= 4
+                                    //si me dan la otra caché la actualizo y la libero
+                                    //si no me dan la otra caché libero todo y pongo pc -= 4
+                                }
+                            } finally {
+                                candados_directorios[memoria_compartida_CPU].unlock();
+                            }
+                        } else {
+                            pc = pc - 4;
+                            System.out.println("Desde el CPU " + id + " no pude entrar al directorio del bloque a escribir!!!");
+                        }
+                    }
+                } else { //NO ESTÁ EN MÍ CACHÉ
+
+                }
+            } finally {
+                candados_caches[id].unlock();
+            }
+        } else {
             pc = pc - 4;
             System.out.println("Desde el CPU " + id + " no pude entrar a mi cache de datos!!!");
         }
