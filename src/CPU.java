@@ -174,7 +174,7 @@ public class CPU implements Runnable {
                 LW(ir[1], ir[2], ir[3]);
                 break;
             case 43:
-                LW(ir[1], ir[2], ir[3]);
+                SW(ir[1], ir[2], ir[3]);
                 break;
             case 63:
                 FIN();
