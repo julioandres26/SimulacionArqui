@@ -119,12 +119,12 @@ public class CPU implements Runnable {
 
             etiquetas_cache[indice] = bloque;
 
-            fallo_cache();
+            ciclos_de_retraso(16); //fallo de caché
         }
     }
 
-    public void fallo_cache() { //le dice al hilo padre que ya terminó su ejecución (por 16 ciclos)
-        for (int i = 0; i < 16; i++) {
+    public void ciclos_de_retraso(int n) { //le dice al hilo padre que ya terminó su ejecución (por n ciclos)
+        for (int i = 0; i < n; i++) {
             try {
                 barrera.await();
             } catch (InterruptedException | BrokenBarrierException ex) {
@@ -185,16 +185,6 @@ public class CPU implements Runnable {
         }
         reloj[hilo_actual]++; //aumenta la cantidad de ciclos que tardó la ejecución del hilo actual
         quantum--; //el quantum se resta solo cuando se ejecuta una instrucción
-    }
-
-    public void tire_barreras(int i){
-        for (int j = 1; j <= i; j++){
-            try {
-                barrera.await();
-            } catch (InterruptedException | BrokenBarrierException ex) {
-                Logger.getLogger(CPU.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
     }
 
     public void cambio_contexto() { //cambia de contexto al hilo actual por el siguiente en la cola (actual+1)
