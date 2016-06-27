@@ -505,20 +505,37 @@ public class CPU implements Runnable {
 
     public String imprimir_resultados() { //devuelve un String con los resultados finales del CPU
         String registros_String = ("- - Registros de CPU " + id + " - -");
-        String espacio;
         for (int j = 0; j < cant_hilos; j++) {
             registros_String += ("\n\n- - Hilo " + hilos.get(j).getName() + " - -\n");
             for (int i = 0; i < 32; i++) {
-                if (i < 9) {
-                    espacio = "    ";
-                } else {
-                    espacio = "  ";
-                }
-                registros_String += ("R" + i + espacio + contexto[j][i] + "\n");
+                registros_String += String.format("%1$s%2$-2s %3$4s\n", "R", i, contexto[j][i]);
             }
             registros_String += "\nTardó en ejecutarse " + reloj[j] + " ciclos.";
+            registros_String += "\n\n- - CACHÉ DE DATOS AL FINALIZAR EL HILO " + hilos.get(j).getName() + " - -\n\n";
+            String format = "|%1$-4s|%2$-4s|%3$-4s|%4$-4s|";
+            String estado[] = new String[4];
+            for (int i = 0; i < 6; i++) {
+                if (i < 4) {
+                    registros_String += String.format(format, caches_de_datos[id][0][i], caches_de_datos[id][1][i], caches_de_datos[id][2][i], caches_de_datos[id][3][i]);
+                    registros_String += "\n";
+                } else if (i == 4) {
+                    registros_String += String.format(format, caches_de_datos[id][0][i], caches_de_datos[id][1][i], caches_de_datos[id][2][i], caches_de_datos[id][3][i]);
+                    registros_String += " < - - - ETIQUETA\n";
+                } else {
+                    for (int k = 0; k < 4; k++) {
+                        if (caches_de_datos[id][k][i] == 0) {
+                            estado[k] = "C";
+                        } else if (caches_de_datos[id][k][i] == 1) {
+                            estado[k] = "M";
+                        } else {
+                            estado[k] = "I";
+                        }
+                    }
+                    registros_String += String.format(format, estado[0], estado[1], estado[2], estado[3]);
+                    registros_String += " < - - - ESTADO\n";
+                }
+            }
         }
-
         return registros_String;
     }
 
