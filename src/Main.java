@@ -1,3 +1,4 @@
+import java.awt.Font;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -103,7 +104,7 @@ public class Main {
         }
 
         ventana.resultados.setVisible(true);
-        ventana.resultados.setBounds(0, 0, 468, 590);
+        ventana.resultados.setBounds(0, 0, 520, 610);
         ventana.informacion.setText("Hilos MIPS " + hilos + ", Quantum " + quantum);
 
         CyclicBarrier barrera = new CyclicBarrier(4); //barrera para la sincronización de los CPU
@@ -151,26 +152,34 @@ public class Main {
         barrera.await();
 
         //impresión de los resultados en la ventana
-        ventana.jTextArea1.append(cpu1.imprimir_resultados() + "\n");
+        ventana.jTextArea1.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        
+        ventana.jTextArea1.append(cpu1.imprimir_resultados());
         for(int i = 0; i < hilos/3; i++)
             ventana.jTextArea1.append("\nHilo " + cpu1.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu1_reloj[i][0] + " terminó en " + cpu1_reloj[i][1] + ".");
         ventana.jTextArea1.append("\n\n\n");
 
-        ventana.jTextArea1.append(cpu2.imprimir_resultados() + "\n");
+        ventana.jTextArea1.append(cpu2.imprimir_resultados());
         for(int i = 0; i < hilos/3; i++)
             ventana.jTextArea1.append("\nHilo " + cpu2.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu2_reloj[i][0] + " terminó en " + cpu2_reloj[i][1] + ".");
         ventana.jTextArea1.append("\n\n\n");
 
-        ventana.jTextArea1.append(cpu3.imprimir_resultados() + "\n");
+        ventana.jTextArea1.append(cpu3.imprimir_resultados());
         for(int i = 0; i < hilos/3; i++)
             ventana.jTextArea1.append("\nHilo " + cpu3.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu3_reloj[i][0] + " terminó en " + cpu3_reloj[i][1] + ".");
 
+        ventana.jTextArea1.append("\n\n\n\n- - - CONTENIDO DE LA MEMORIA COMPARTIDA - - -\n\n");
+        ventana.jTextArea1.append("CPU 1"+"\t\t\tCPU 2"+"\t\t\tCPU 3\n\n");
+        String format = "%1$-6s %2$-4s \t\t%3$-6s %4$-4s \t\t%5$-6s %6$-4s\n";
+        for (int i = 0; i < 32; i++) {
+            ventana.jTextArea1.append(String.format(format, i + "->", memorias_compartidas[0][i], (i+32) + "->", memorias_compartidas[1][i], (i+64) + "->", memorias_compartidas[2][i]));
+        }
+
         barreraGUI.await();
         
-        System.out.println("Desde el main: " + cpu1.prueba);
         System.exit(0);
     }
 }
