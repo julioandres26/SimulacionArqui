@@ -264,6 +264,8 @@ public class CPU implements Runnable {
     public void LW(int RY, int RX, int n) {
         //ETIQUETAS CACHE: C = 0, M = 1, I = 2
         //ETIQUETAS DIRECTORIO: C = 0, M = 1, U = 2
+        pc += 4;
+
         int direccion_de_memoria = n + registros[RY]; //Calcular la direccion de memoria, al sumar el inmediato con el valor del registro RY.
         int bloque = direccion_de_memoria / 16; //Numero de bloque donde está la direccion de memoria.
         int memoria_compartida_CPU = bloque / 8; //# de memoria compartida (cual CPU) está el bloque.
