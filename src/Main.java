@@ -175,7 +175,10 @@ public class Main {
         ventana.jTextArea1.append("CPU 1"+"\t\t\tCPU 2"+"\t\t\tCPU 3\n\n");
         String format = "%1$-6s %2$-4s \t\t%3$-6s %4$-4s \t\t%5$-6s %6$-4s\n";
         for (int i = 0; i < 32; i++) {
-            ventana.jTextArea1.append(String.format(format, i + "->", memorias_compartidas[0][i], (i+32) + "->", memorias_compartidas[1][i], (i+64) + "->", memorias_compartidas[2][i]));
+            ventana.jTextArea1.append(String.format(format, i*4 + "->", memorias_compartidas[0][i], (i+32)*4 + "->", memorias_compartidas[1][i], (i+64)*4 + "->", memorias_compartidas[2][i]));
+            if (((i+1)%4) == 0) {
+                ventana.jTextArea1.append("\n");
+            }
         }
 
         barreraGUI.await();
