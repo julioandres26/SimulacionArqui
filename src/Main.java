@@ -155,23 +155,23 @@ public class Main {
         ventana.jTextArea1.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         
         ventana.jTextArea1.append(cpu1.imprimir_resultados());
-        for(int i = 0; i < hilos/3; i++)
+        for(int i = 0; cpu1.cant_hilos; i++)
             ventana.jTextArea1.append("\nHilo " + cpu1.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu1_reloj[i][0] + " terminó en " + cpu1_reloj[i][1] + ".");
         ventana.jTextArea1.append("\n\n\n");
 
         ventana.jTextArea1.append(cpu2.imprimir_resultados());
-        for(int i = 0; i < hilos/3; i++)
+        for(int i = 0; i < cpu2.cant_hilos; i++)
             ventana.jTextArea1.append("\nHilo " + cpu2.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu2_reloj[i][0] + " terminó en " + cpu2_reloj[i][1] + ".");
         ventana.jTextArea1.append("\n\n\n");
 
         ventana.jTextArea1.append(cpu3.imprimir_resultados());
-        for(int i = 0; i < hilos/3; i++)
+        for(int i = 0; i < cpu3.cant_hilos; i++)
             ventana.jTextArea1.append("\nHilo " + cpu3.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu3_reloj[i][0] + " terminó en " + cpu3_reloj[i][1] + ".");
 
-        ventana.jTextArea1.append("\n\n\n\n- - - CONTENIDO DE LA MEMORIA COMPARTIDA - - -\n\n");
+        ventana.jTextArea1.append("\n\n\n- - - CONTENIDO DE LA MEMORIA COMPARTIDA - - -\n\n");
         ventana.jTextArea1.append("CPU 1"+"\t\t\tCPU 2"+"\t\t\tCPU 3\n\n");
         String format = "%1$-6s %2$-4s \t\t%3$-6s %4$-4s \t\t%5$-6s %6$-4s\n";
         for (int i = 0; i < 32; i++) {
