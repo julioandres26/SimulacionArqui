@@ -762,7 +762,7 @@ public class CPU implements Runnable {
             }
 
             if (!procesamiento_terminado()) {
-                if ((quantum > 0) && (hilos_terminados[hilo_actual] == false)) {
+                while ((quantum > 0) && (hilos_terminados[hilo_actual] == false)) {
                     cargar_instruccion(pc);
                     ejecutar_instruccion();
                 }
