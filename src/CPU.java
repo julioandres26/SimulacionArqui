@@ -682,7 +682,7 @@ public class CPU implements Runnable {
     }
 
     public String imprimir_resultados() { //devuelve un String con los resultados finales del CPU
-        String registros_String = ("- - Registros de CPU " + id + " - -");
+        String registros_String = ("- - Registros de CPU " + (id + 1) + " - -");
         for (int j = 0; j < cant_hilos; j++) {
             registros_String += ("\n\n- - Hilo " + hilos.get(j).getName() + " - -\n");
             for (int i = 0; i < 32; i++) {
