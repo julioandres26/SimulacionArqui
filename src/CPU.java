@@ -118,13 +118,13 @@ public class CPU implements Runnable {
             }
 
             etiquetas_cache[indice] = bloque;
-
-            fallo_cache();
+        
+            ciclos_de_retraso(16); //fallo de caché
         }
     }
 
-    public void fallo_cache() { //le dice al hilo padre que ya terminó su ejecución (por 16 ciclos)
-        for (int i = 0; i < 16; i++) {
+    public void ciclos_de_retraso(int n) { //le dice al hilo padre que ya terminó su ejecución (por n ciclos)
+        for (int i = 0; i < n; i++) {
             try {
                 barrera.await();
             } catch (InterruptedException | BrokenBarrierException ex) {
