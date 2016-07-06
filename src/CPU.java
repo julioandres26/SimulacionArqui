@@ -39,7 +39,8 @@ public class CPU implements Runnable {
     Lock candados_directorios[];
     Lock candados_caches[];
 
-    public int prueba = 3;
+    public int bloque_candado_LL;
+    public boolean bandera_LL;
 
     public CPU(int id, int quantum, List<File> hilos, CyclicBarrier barrera, int caches_de_datos[][][], int memorias_compartidas[][], int directorios[][][], Lock candados_caches[], Lock candados_directorios[], int registrosRL[]) {
         this.id = id;
@@ -59,12 +60,14 @@ public class CPU implements Runnable {
         pc_contexto = 0;
         cant_hilos = hilos.size();
         hilo_actual = 0;
+        bloque_candado_LL = -1;
 
         contexto = new int[cant_hilos][33];
         hilos_terminados = new boolean[cant_hilos];
         reloj = new int[cant_hilos];
 
         terminado = false;
+        bandera_LL = false;
 
         for (int i = 0; i < cant_hilos; i++) {
             hilos_terminados[i] = false;
@@ -176,6 +179,9 @@ public class CPU implements Runnable {
             case 43:
                 SW(ir[1], ir[2], ir[3]);
                 break;
+            case 50:
+                LL(ir[1], ir[2], ir[3]);
+                break;
             case 63:
                 FIN();
                 break;
@@ -270,6 +276,10 @@ public class CPU implements Runnable {
         pc += 4;
         pc = registros[RX];
     }
+    
+    public void LL(int RY, int RX, int n) { //RX <- M[n+RY], RL <- n+RY
+        LW(RY, RX, n); // Dentro del LW se verifica si es un LL y se hace RL <- n+RY, se activa bandera_LL y se actualiza bloque_candado_LL.
+    }
 
     public void LW(int RY, int RX, int n) {
         //ETIQUETAS CACHE: C = 0, M = 1, I = 2
@@ -288,6 +298,14 @@ public class CPU implements Runnable {
                 if ((caches_de_datos[id][indice][4] == bloque) && (caches_de_datos[id][indice][5] != 2)) {
                     //SÍ ESTÁ EN MI CACHÉ (C Ó M) -> LEER
                     registros[RX] = caches_de_datos[id][indice][palabra];
+
+                    if (ir[0] == 50) { //ES UN LL
+                        //- Activar una bandera para saber que hay un LL activo. (La bandera se desactiva en el SC???)
+                        bandera_LL = true;
+                        //- Copiar en una variable el número de bloque del que se leyó el candado.
+                        bloque_candado_LL = (n + registros[RY]) / 16; //Número de bloque donde está la direccion de memoria de la que se leyó el candado.
+                        registrosRL[id] = n + registros[RY];
+                    }
                 } else {
                     //NO ESTÁ EN MI CACHÉ -> ENTRAMOS A LIDIAR CON LA VICTIMA
                     if (caches_de_datos[id][indice][5] != 2) { //La etiqueta de la victima es diferente de I? (La víctima está C ó M en otra caché)
@@ -323,7 +341,7 @@ public class CPU implements Runnable {
                                 candados_directorios[directorio_o_memoria_compartida_de_victima].unlock();
                                 // YA SE ELIMINÓ LA VÍCTIMA
                                 if (candados_directorios[memoria_compartida_CPU].tryLock()) { //tryLock directorio del bloque a cargar
-                                    subir_bloque_a_cache_y_leer(indice, bloque, memoria_compartida_CPU, indice_de_directorio_de_bloque_a_leer, RX, palabra);
+                                    subir_bloque_a_cache_y_leer(n, RY, RX, indice, bloque, palabra, memoria_compartida_CPU, indice_de_directorio_de_bloque_a_leer);
                                 } else {
                                     pc = pc - 4;
                                     System.out.println("Desde el CPU " + id + " no pude entrar al directorio del bloque a leer!!!");
@@ -336,7 +354,7 @@ public class CPU implements Runnable {
                     } else { // NO hay víctima -> La etiqueta está I
                         // NO HAY VICTIMA, porque está en I el estado de la supuesta victima
                         if (candados_directorios[memoria_compartida_CPU].tryLock()) { //tryLock directorio del bloque a cargar
-                            subir_bloque_a_cache_y_leer(indice, bloque, memoria_compartida_CPU, indice_de_directorio_de_bloque_a_leer, RX, palabra);
+                            subir_bloque_a_cache_y_leer(n, RY, RX, indice, bloque, palabra, memoria_compartida_CPU, indice_de_directorio_de_bloque_a_leer);
                         } else {
                             pc = pc - 4;
                             System.out.println("Desde el CPU " + id + " no pude entrar al directorio del bloque a leer!!!");
@@ -352,7 +370,7 @@ public class CPU implements Runnable {
         }
     }
     
-    public void subir_bloque_a_cache_y_leer(int indice, int bloque, int memoria_compartida_CPU, int indice_de_directorio_de_bloque_a_leer, int RX, int palabra) {
+    public void subir_bloque_a_cache_y_leer(int n, int RY, int RX, int indice, int bloque, int palabra, int memoria_compartida_CPU, int indice_de_directorio_de_bloque_a_leer) {
         try {
             if (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] == 1) { // Reviso si el bloque a cargar está modificado en otro CPU
                 // Como está M en otro CPU, debo bajarlo a memoria primero
@@ -376,6 +394,13 @@ public class CPU implements Runnable {
 
                         // LEER porque ya subimos bloque a nuestra caché entonces estamos como el primer caso
                         registros[RX] = caches_de_datos[id][indice][palabra];
+                        if (ir[0] == 50) { //ES UN LL
+                            //- Activar una bandera para saber que hay un LL activo. (La bandera se desactiva en el SC???)
+                            bandera_LL = true;
+                            //- Copiar en una variable el número de bloque del que se leyó el candado.
+                            bloque_candado_LL = (n + registros[RY]) / 16; //Número de bloque donde está la direccion de memoria de la que se leyó el candado.
+                            registrosRL[id] = n + registros[RY];
+                        }
                     } finally {
                         candados_caches[CPU_que_tiene_bloque_modificado].unlock();
                     }
@@ -396,6 +421,14 @@ public class CPU implements Runnable {
 
                 //LEER
                 registros[RX] = caches_de_datos[id][indice][palabra];
+
+                if (ir[0] == 50) { //ES UN LL
+                    //- Activar una bandera para saber que hay un LL activo. (La bandera se desactiva en el SC???)
+                    bandera_LL = true;
+                    //- Copiar en una variable el número de bloque del que se leyó el candado.
+                    bloque_candado_LL = (n + registros[RY]) / 16; //Número de bloque donde está la direccion de memoria de la que se leyó el candado.
+                    registrosRL[id] = n + registros[RY];
+                }
             }
         } finally {
             candados_directorios[memoria_compartida_CPU].unlock();
