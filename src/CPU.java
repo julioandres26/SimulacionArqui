@@ -272,31 +272,30 @@ public class CPU implements Runnable {
     }
 
     public void LW(int RY, int RX, int n) {
-        pc += 4;
         //ETIQUETAS CACHE: C = 0, M = 1, I = 2
         //ETIQUETAS DIRECTORIO: C = 0, M = 1, U = 2
+        
+        pc += 4;
         int direccion_de_memoria = n + registros[RY]; //Calcular la direccion de memoria, al sumar el inmediato con el valor del registro RY.
         int bloque = direccion_de_memoria / 16; //Numero de bloque donde está la direccion de memoria.
         int memoria_compartida_CPU = bloque / 8; //# de memoria compartida (cual CPU) está el bloque.
         int indice = bloque % 4; //índice de la caché para el bloque actual (mapeo directo).
+        int palabra = (direccion_de_memoria % 16) / 4; //palabra que se va a leer
         int indice_de_directorio_de_bloque_a_leer = bloque % 8;
 
         if (candados_caches[id].tryLock()) { //tryLock en mi caché
             try {
                 if ((caches_de_datos[id][indice][4] == bloque) && (caches_de_datos[id][indice][5] != 2)) {
                     //SÍ ESTÁ EN MI CACHÉ (C Ó M) -> LEER
-                    int resultado_previo = direccion_de_memoria % 16;
-                    int palabra = resultado_previo / 4;
-                    System.out.println("indice = " + indice + " palabra = " + palabra);
-                    System.out.println("cache_datos1 = " + caches_de_datos[id][indice][palabra]);
                     registros[RX] = caches_de_datos[id][indice][palabra];
                 } else {
-                    // ENTRAMOS A LIDIAR CON LA VICTIMA
-                    if (caches_de_datos[id][indice][5] != 2){ // La etiqueta de la victima es diferente de I?
+                    //NO ESTÁ EN MI CACHÉ -> ENTRAMOS A LIDIAR CON LA VICTIMA
+                    if (caches_de_datos[id][indice][5] != 2) { //La etiqueta de la victima es diferente de I? (La víctima está C ó M en otra caché)
                         int bloque_victima = caches_de_datos[id][indice][4]; //Busca la etiqueta del bloque victima
-                        int directorio_o_memoria_compartida_de_victima = bloque_victima / 8;
                         int indice_de_directorio_de_bloque_victima = bloque_victima % 8;
-                        if (candados_directorios[directorio_o_memoria_compartida_de_victima].tryLock()){
+                        int directorio_o_memoria_compartida_de_victima = bloque_victima / 8;
+
+                        if (candados_directorios[directorio_o_memoria_compartida_de_victima].tryLock()) { //pide directorio de la víctima
                             try {
                                 if (caches_de_datos[id][indice][5] == 0) { //Pregunto si la etiqueta del bloque victima es C.
                                     // VICTIMA ESTA COMPARTIDA
@@ -311,96 +310,95 @@ public class CPU implements Runnable {
                                         directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][3] = 2; //cambia la etiqueta a U
                                     }
                                 } else {
-                                    // VICTIMA ESTA MODIFICADA
+                                    // VÍCTIMA ESTÁ MODIFICADA
                                     // Vamos a actulizar directorios
                                     directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][id] = 0; //Se modifica para el procesador actual y se pone en 0.
                                     directorios[directorio_o_memoria_compartida_de_victima][indice_de_directorio_de_bloque_victima][3] = 2; //Se modifica la etiqueta y se pone en U.
-                                    for (int i = 0; i < 4; i++){ // MOVEMOS VICTIMA A MEMORIA
+                                    for (int i = 0; i < 4; i++) { // MOVEMOS VICTIMA A MEMORIA
                                         memorias_compartidas[directorio_o_memoria_compartida_de_victima][((bloque_victima % 8) * 4) + i] = caches_de_datos[id][indice][i];
                                     }
                                     caches_de_datos[id][indice][5] = 2; //Pongo el estado del bloque en I.
                                 }
                             } finally {
                                 candados_directorios[directorio_o_memoria_compartida_de_victima].unlock();
+                                // YA SE ELIMINÓ LA VÍCTIMA
+                                if (candados_directorios[memoria_compartida_CPU].tryLock()) { //tryLock directorio del bloque a cargar
+                                    subir_bloque_a_cache_y_leer(indice, bloque, memoria_compartida_CPU, indice_de_directorio_de_bloque_a_leer, RX, palabra);
+                                } else {
+                                    pc = pc - 4;
+                                    System.out.println("Desde el CPU " + id + " no pude entrar al directorio del bloque a leer!!!");
+                                }
                             }
                         } else {
                             pc = pc - 4;
                             System.out.println("Desde el CPU " + id + " no pude entrar al directorio de la víctima!!!");
                         }
-                    }
-                    // NO HAY VICTIMA, porque está en I el estado de la supuesta victima
-                    if (candados_directorios[memoria_compartida_CPU].tryLock()){
-                        try {
-                            //AQUI VIMOS EL PRIMER ERROR, NO ERA EL NUMERO DE BLOQUE, ES EL NUMERO DE INDICE LO QUE SE NECESITA, POR ESO bloque % 8.
-//                            int indice_de_directorio_de_bloque_a_leer = bloque % 8;
-                            if (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] == 1){ // Reviso si el bloque a cargar está modificado en otro CPU
-                                // Como está M en otro CPU, debo bajarlo a memoria primero
-                                int CPU_que_tiene_bloque_modificado = -1; // Esta valor es por defecto, para que compile.
-                                for (int i = 0; i < 3; i++){
-                                    if (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][i] == 1){
-                                        CPU_que_tiene_bloque_modificado = i;
-                                    }
-                                }
-                                if (candados_caches[CPU_que_tiene_bloque_modificado].tryLock()){
-                                    try {
-                                        for (int i = 0; i < 4; i++){ // MOVEMOS VICTIMA que si es el bloque que queremos leer A MEMORIA y de una vez lo subimos a nuestra caché
-                                            memorias_compartidas[memoria_compartida_CPU][((bloque % 8) * 4) + i] = caches_de_datos[CPU_que_tiene_bloque_modificado][indice][i];
-                                            caches_de_datos[id][indice][i] = caches_de_datos[CPU_que_tiene_bloque_modificado][indice][i];
-                                        }
-                                        caches_de_datos[id][indice][4] = bloque; //Se actualiza la etiqueta
-                                        caches_de_datos[id][indice][5] = 0; //Se pone C en el estado
-                                        caches_de_datos[CPU_que_tiene_bloque_modificado][indice][5] = 0;
-                                        directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] = 0;
-                                        directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][id] = 1;
-
-                                        // LEER porque ya subimos bloque a nuestra caché entonces estamos como el primer caso
-                                        int resultado_previo = direccion_de_memoria % 16;
-                                        int palabra = resultado_previo / 4;
-                                        System.out.println("indice = " + indice + " palabra = " + palabra);
-                                        System.out.println("cache_datos1 = " + caches_de_datos[id][indice][palabra]);
-                                        registros[RX] = caches_de_datos[id][indice][palabra];
-                                    } finally {
-                                        candados_caches[CPU_que_tiene_bloque_modificado].unlock();
-                                    }
-                                } else {
-                                    pc  -= 4;
-                                    System.out.println("Desde el CPU " + id + " no pude entrar a la caché donde el bloque está M!!!");
-                                }
-                            } else { // SI NO ESTA M, quiere decir que está compartido o libre (U)
-                                for (int i = 0; i < 4; i++){
-                                    int direccion_fisica = ((bloque % 8) * 4) + i;
-                                    caches_de_datos[id][indice][i] = memorias_compartidas[memoria_compartida_CPU][direccion_fisica];
-                                }
-                                caches_de_datos[id][indice][4] = bloque; //Se actualiza la etiqueta
-                                caches_de_datos[id][indice][5] = 0; //Se pone C en el estado
-                                directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][id] = 1;
-                                directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] = 0;
-
-                                //LEER
-                                int resultado_previo = direccion_de_memoria % 16;
-                                int palabra = resultado_previo / 4;
-                                System.out.println("indice = " + indice + " palabra = " + palabra);
-                                System.out.println("cache_datos1 = " + caches_de_datos[id][indice][palabra]);
-                                registros[RX] = caches_de_datos[id][indice][palabra];
-                            }
-//                            directorios[memoria_compartida_CPU][bloque][id] = 0;
-//                            for (int i = 0; i < 4; i++){
-//                                caches_de_datos[id][indice][i] = memorias_compartidas[memoria_compartida_CPU][(bloque % 8) * 4 +i];
-//                            }
-                        } finally {
-                            candados_directorios[memoria_compartida_CPU].unlock();
+                    } else { // NO hay víctima -> La etiqueta está I
+                        // NO HAY VICTIMA, porque está en I el estado de la supuesta victima
+                        if (candados_directorios[memoria_compartida_CPU].tryLock()) { //tryLock directorio del bloque a cargar
+                            subir_bloque_a_cache_y_leer(indice, bloque, memoria_compartida_CPU, indice_de_directorio_de_bloque_a_leer, RX, palabra);
+                        } else {
+                            pc = pc - 4;
+                            System.out.println("Desde el CPU " + id + " no pude entrar al directorio del bloque a leer!!!");
                         }
-                    } else {
-                        pc -= 4;
-                        System.out.println("Desde el CPU " + id + " no pude entrar al directorio del bloque a leer!!!");
                     }
-                }
+                } // FIN "NO ESTÁ EN MI CACHÉ"
             } finally {
                 candados_caches[id].unlock();
             }
         } else { //no pudo adquirir el lock de mi cache
-            pc -= 4;
+            pc = pc - 4;
             System.out.println("Desde el CPU " + id + " no pude entrar a mi cache de datos!!!");
+        }
+    }
+    
+    public void subir_bloque_a_cache_y_leer(int indice, int bloque, int memoria_compartida_CPU, int indice_de_directorio_de_bloque_a_leer, int RX, int palabra) {
+        try {
+            if (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] == 1) { // Reviso si el bloque a cargar está modificado en otro CPU
+                // Como está M en otro CPU, debo bajarlo a memoria primero
+                int CPU_que_tiene_bloque_modificado; // Esta valor es por defecto, para que compile.
+                if (directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][(id + 1) % 3] == 1) {
+                    CPU_que_tiene_bloque_modificado = (id + 1) % 3; //la primera siguiente caché que no es mi caché
+                } else {
+                    CPU_que_tiene_bloque_modificado = (id + 2) % 3; //la segunda siguiente caché que no es mi caché
+                }
+                if (candados_caches[CPU_que_tiene_bloque_modificado].tryLock()) {
+                    try {
+                        for (int i = 0; i < 4; i++) { // MOVEMOS VICTIMA que si es el bloque que queremos leer A MEMORIA y de una vez lo subimos a nuestra caché
+                            memorias_compartidas[memoria_compartida_CPU][((bloque % 8) * 4) + i] = caches_de_datos[CPU_que_tiene_bloque_modificado][indice][i];
+                            caches_de_datos[id][indice][i] = caches_de_datos[CPU_que_tiene_bloque_modificado][indice][i];
+                        }
+                        caches_de_datos[id][indice][4] = bloque; //Se actualiza la etiqueta
+                        caches_de_datos[id][indice][5] = 0; //Se pone C en el estado en mi caché
+                        caches_de_datos[CPU_que_tiene_bloque_modificado][indice][5] = 0; //Se pone C en el estado en la caché remota
+                        directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][id] = 1;
+                        directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] = 0;
+
+                        // LEER porque ya subimos bloque a nuestra caché entonces estamos como el primer caso
+                        registros[RX] = caches_de_datos[id][indice][palabra];
+                    } finally {
+                        candados_caches[CPU_que_tiene_bloque_modificado].unlock();
+                    }
+                } else {
+                    pc = pc - 4;
+                    System.out.println("Desde el CPU " + id + " no pude entrar a la caché donde el bloque está M!!!");
+                }
+            } else { // SI NO ESTA M, quiere decir que está compartido o libre (U)
+                int direccion_fisica;
+                for (int i = 0; i < 4; i++) {
+                    direccion_fisica = ((bloque % 8) * 4) + i;
+                    caches_de_datos[id][indice][i] = memorias_compartidas[memoria_compartida_CPU][direccion_fisica];
+                }
+                caches_de_datos[id][indice][4] = bloque; //Se actualiza la etiqueta
+                caches_de_datos[id][indice][5] = 0; //Se pone C en el estado
+                directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][id] = 1;
+                directorios[memoria_compartida_CPU][indice_de_directorio_de_bloque_a_leer][3] = 0;
+
+                //LEER
+                registros[RX] = caches_de_datos[id][indice][palabra];
+            }
+        } finally {
+            candados_directorios[memoria_compartida_CPU].unlock();
         }
     }
 
