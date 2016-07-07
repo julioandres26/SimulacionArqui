@@ -1,3 +1,6 @@
+package proyectoarqui;
+
+import java.awt.Font;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,24 +23,10 @@ public class Main {
 
         barreraGUI.await();
 
-        // DESCOMENTAR ESTO PARA PODER UTILIZAR LA INTERFAZ GRAFICA
         int quantum = Integer.parseInt(ventana.cantidad_quantum.getText());
         int hilos = Integer.parseInt(ventana.cantidad_hilos.getText());
         File[] archivos = ventana.ventana_buscar_archivos.getSelectedFiles();
-        // DESCOMENTAR HASTA AQUI.
-
-        // Comentar esta seccion en caso de querer usar la GUI
-//        int quantum = 30;
-//        int hilos = 3;
-//        File[] archivos = new File[3];
-//        archivos[0] = new File("/Users/Julio/3HilillossoloconLWs-v4/A.txt");
-//        archivos[1] = new File("/Users/Julio/3HilillossoloconLWs-v4/B.txt");
-//        archivos[2] = new File("/Users/Julio/3HilillossoloconLWs-v4/C.txt");
-//        archivos[3] = new File("C:/Users/A71279/Documents/4.txt");
-//        archivos[4] = new File("C:/Users/A71279/Documents/5.txt");
-//        archivos[5] = new File("C:/Users/A71279/Documents/6.txt");
-        //Fin de seccion
-
+        
         List<File> archivosCPU1 = new ArrayList<>();
         List<File> archivosCPU2 = new ArrayList<>();
         List<File> archivosCPU3 = new ArrayList<>();
@@ -72,6 +61,15 @@ public class Main {
 
         // array con los RLs de los tres procesadores
         int registrosRL[] = new int[3];
+        // array con las banderas de LL activos en los tres procesadores
+        boolean banderas_LL[] = new boolean[3];
+        // array con los números de bloque de LL activos en los tres procesadores
+        int bloque_candados_LL[] = new int[3];
+        for (int i = 0; i < 3; i++) {
+            registrosRL[i] = -1;
+            banderas_LL[i] = false;
+            bloque_candados_LL[i] = -1;
+        }
 
         Lock candados_directorios[] = new ReentrantLock[3];
         Lock candados_caches[] = new ReentrantLock[3];
@@ -101,17 +99,17 @@ public class Main {
                     break;
             }
         }
-
+        
         ventana.resultados.setVisible(true);
-        ventana.resultados.setBounds(0, 0, 468, 590);
+        ventana.resultados.setBounds(0, 0, 520, 610);
         ventana.informacion.setText("Hilos MIPS " + hilos + ", Quantum " + quantum);
 
         CyclicBarrier barrera = new CyclicBarrier(4); //barrera para la sincronización de los CPU
 
-        CPU cpu1 = new CPU(0, quantum, archivosCPU1, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
-        CPU cpu2 = new CPU(1, quantum, archivosCPU2, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
-        CPU cpu3 = new CPU(2, quantum, archivosCPU3, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL);
-
+        CPU cpu1 = new CPU(0, quantum, archivosCPU1, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL, bloque_candados_LL, banderas_LL);
+        CPU cpu2 = new CPU(1, quantum, archivosCPU2, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL, bloque_candados_LL, banderas_LL);
+        CPU cpu3 = new CPU(2, quantum, archivosCPU3, barrera, caches_de_datos, memorias_compartidas, directorios, candados_caches, candados_directorios, registrosRL, bloque_candados_LL, banderas_LL);
+        
         Thread thread1 = new Thread(cpu1);
         Thread thread2 = new Thread(cpu2);
         Thread thread3 = new Thread(cpu3);
@@ -123,7 +121,7 @@ public class Main {
         int cpu1_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 1
         int cpu2_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 2
         int cpu3_reloj[][] = new int[hilos][2]; //reloj de inicio y final de ejecución de los hilos en CPU 3
-
+        
         int reloj = 0; //reloj de sincronización del hilo padre
         while (!cpu1.procesamiento_terminado() || !cpu2.procesamiento_terminado() || !cpu3.procesamiento_terminado()) {
             barrera.await();
@@ -151,26 +149,37 @@ public class Main {
         barrera.await();
 
         //impresión de los resultados en la ventana
-        ventana.jTextArea1.append(cpu1.imprimir_resultados() + "\n");
-        for(int i = 0; i < hilos/3; i++)
+        ventana.jTextArea1.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        
+        ventana.jTextArea1.append(cpu1.imprimir_resultados());
+        for(int i = 0; i < cpu1.cant_hilos; i++)
             ventana.jTextArea1.append("\nHilo " + cpu1.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu1_reloj[i][0] + " terminó en " + cpu1_reloj[i][1] + ".");
         ventana.jTextArea1.append("\n\n\n");
 
-        ventana.jTextArea1.append(cpu2.imprimir_resultados() + "\n");
-        for(int i = 0; i < hilos/3; i++)
+        ventana.jTextArea1.append(cpu2.imprimir_resultados());
+        for(int i = 0; i < cpu2.cant_hilos; i++)
             ventana.jTextArea1.append("\nHilo " + cpu2.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu2_reloj[i][0] + " terminó en " + cpu2_reloj[i][1] + ".");
         ventana.jTextArea1.append("\n\n\n");
 
-        ventana.jTextArea1.append(cpu3.imprimir_resultados() + "\n");
-        for(int i = 0; i < hilos/3; i++)
+        ventana.jTextArea1.append(cpu3.imprimir_resultados());
+        for(int i = 0; i < cpu3.cant_hilos; i++)
             ventana.jTextArea1.append("\nHilo " + cpu3.hilos.get(i).getName() + " empezó con el reloj "
                     + cpu3_reloj[i][0] + " terminó en " + cpu3_reloj[i][1] + ".");
 
+        ventana.jTextArea1.append("\n\n\n- - - CONTENIDO DE LA MEMORIA COMPARTIDA - - -\n\n");
+        ventana.jTextArea1.append("CPU 1"+"\t\t\tCPU 2"+"\t\t\tCPU 3\n\n");
+        String format = "%1$-6s %2$-4s \t\t%3$-6s %4$-4s \t\t%5$-6s %6$-4s\n";
+        for (int i = 0; i < 32; i++) {
+            ventana.jTextArea1.append(String.format(format, i*4 + "->", memorias_compartidas[0][i], (i+32)*4 + "->", memorias_compartidas[1][i], (i+64)*4 + "->", memorias_compartidas[2][i]));
+            if (((i+1)%4) == 0) {
+                ventana.jTextArea1.append("\n");
+            }
+        }
+        
         barreraGUI.await();
-
-        System.out.println("Desde el main: " + cpu1.prueba);
+        
         System.exit(0);
     }
 }
